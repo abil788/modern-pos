@@ -27,7 +27,9 @@ export async function GET(request: NextRequest) {
         items: true,
         cashier: {
           select: {
+            id: true,
             fullName: true,
+            username: true,
           },
         },
       },
@@ -127,7 +129,9 @@ export async function POST(request: NextRequest) {
         items: true,
         cashier: {
           select: {
+            id: true,
             fullName: true,
+            username: true,
           },
         },
       },

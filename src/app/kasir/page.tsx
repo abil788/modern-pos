@@ -190,7 +190,6 @@ export default function KasirPage() {
           {/* Header */}
           <header className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-4">
             <div className="flex items-center justify-between mb-4">
-              <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Kasir POS</h1>
               <ThemeToggle />
             </div>
 
