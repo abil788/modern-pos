@@ -1,0 +1,211 @@
+// Prisma Schema - Modern POS System
+// Database: PostgreSQL 14+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id            String   @id @default(cuid())
+  name          String
+  address       String?
+  phone         String?
+  email         String?
+  logo          String?
+  currency      String   @default("IDR")
+  taxRate       Float    @default(0)
+  receiptFooter String?
+  primaryColor  String   @default("#3B82F6")
+  licenseKey    String?  @unique
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  products     Product[]
+  categories   Category[]
+  transactions Transaction[]
+  expenses     Expense[]
+  users        User[]
+  settings     Setting[]
+  activityLogs ActivityLog[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  password     String
+  role         String   @default("CASHIER") // CASHIER, OWNER, ADMIN
+  fullName     String
+  isLocked     Boolean  @default(false)
+  lockedUntil  DateTime?
+  failedAttempts Int    @default(0)
+  lastLogin    DateTime?
+  storeId      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  store         Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+  activityLogs  ActivityLog[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  icon      String?
+  color     String?
+  storeId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@unique([storeId, name])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  name        String
+  sku         String?  @unique
+  barcode     String?  @unique
+  description String?
+  price       Float
+  cost        Float    @default(0)
+  stock       Int      @default(0)
+  minStock    Int      @default(5)
+  image       String?
+  categoryId  String?
+  storeId     String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store            Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category         Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  variations       ProductVariation[]
+  transactionItems TransactionItem[]
+  promos           Promo[]
+
+  @@index([barcode])
+  @@index([sku])
+}
+
+model ProductVariation {
+  id        String   @id @default(cuid())
+  productId String
+  name      String
+  price     Float
+  stock     Int      @default(0)
+  sku       String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  invoiceNumber   String   @unique
+  subtotal        Float
+  tax             Float    @default(0)
+  discount        Float    @default(0)
+  total           Float
+  paymentMethod   String   // CASH, CARD, QRIS, TRANSFER
+  amountPaid      Float
+  change          Float    @default(0)
+  customerName    String?
+  customerPhone   String?
+  notes           String?
+  cashierId       String
+  storeId         String
+  isSynced        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  store   Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  cashier User              @relation(fields: [cashierId], references: [id])
+  items   TransactionItem[]
+
+  @@index([invoiceNumber])
+  @@index([createdAt])
+}
+
+model TransactionItem {
+  id            String   @id @default(cuid())
+  transactionId String
+  productId     String
+  productName   String
+  quantity      Int
+  price         Float
+  subtotal      Float
+  discount      Float    @default(0)
+  createdAt     DateTime @default(now())
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  product     Product     @relation(fields: [productId], references: [id])
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  category    String
+  amount      Float
+  description String?
+  date        DateTime @default(now())
+  storeId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([date])
+}
+
+model Promo {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // PERCENTAGE, FIXED
+  value       Float
+  minPurchase Float    @default(0)
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  productId   String?
+  storeId     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String
+  value     String
+  storeId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, key])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  details   String?
+  storeId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+}
