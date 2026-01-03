@@ -6,8 +6,15 @@ import { Transaction } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
+interface Cashier {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
 export default function HistoryPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [cashiers, setCashiers] = useState<Record<string, Cashier>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
@@ -15,6 +22,7 @@ export default function HistoryPage() {
 
   useEffect(() => {
     loadTransactions();
+    loadCashiers();
   }, []);
 
   const loadTransactions = async () => {
@@ -27,6 +35,24 @@ export default function HistoryPage() {
       toast.error('Gagal memuat history transaksi');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCashiers = async () => {
+    try {
+      const res = await fetch('/api/cashiers?storeId=demo-store');
+      if (res.ok) {
+        const data = await res.json();
+        // Create a lookup map for cashiers
+        const cashierMap = data.reduce((acc: Record<string, Cashier>, cashier: Cashier) => {
+          acc[cashier.id] = cashier;
+          return acc;
+        }, {});
+        setCashiers(cashierMap);
+      }
+    } catch (error) {
+      console.error('Failed to load cashiers:', error);
+      // Not critical, so don't show error to user
     }
   };
 
@@ -182,7 +208,7 @@ export default function HistoryPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500">
-                      {transaction.cashier?.fullName || '-'}
+                      {cashiers[transaction.cashierId]?.fullName || transaction.cashierId || '-'}
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">
@@ -239,13 +265,28 @@ export default function HistoryPage() {
                 <div>
                   <p className="text-gray-500">Kasir</p>
                   <p className="font-semibold">
-                    {selectedTransaction.cashier?.fullName || '-'}
+                    {cashiers[selectedTransaction.cashierId]?.fullName || 
+                     selectedTransaction.cashierId || '-'}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-500">Metode Pembayaran</p>
                   <p className="font-semibold">{selectedTransaction.paymentMethod}</p>
                 </div>
+                {selectedTransaction.customerName && (
+                  <>
+                    <div>
+                      <p className="text-gray-500">Nama Pelanggan</p>
+                      <p className="font-semibold">{selectedTransaction.customerName}</p>
+                    </div>
+                    {selectedTransaction.customerPhone && (
+                      <div>
+                        <p className="text-gray-500">No. Telepon</p>
+                        <p className="font-semibold">{selectedTransaction.customerPhone}</p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* Items */}
@@ -262,6 +303,11 @@ export default function HistoryPage() {
                         <p className="text-sm text-gray-500">
                           {item.quantity} x {formatCurrency(item.price)}
                         </p>
+                        {item.discount > 0 && (
+                          <p className="text-xs text-red-600">
+                            Diskon: -{formatCurrency(item.discount)}
+                          </p>
+                        )}
                       </div>
                       <p className="font-bold">{formatCurrency(item.subtotal)}</p>
                     </div>

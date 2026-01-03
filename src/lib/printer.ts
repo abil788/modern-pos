@@ -1,7 +1,23 @@
 import { Transaction } from '@/types';
 import { formatCurrency, formatDateTime } from './utils';
 
-export function printReceipt(
+// Helper function to get cashier name
+async function getCashierName(cashierId: string): Promise<string> {
+  try {
+    const res = await fetch(`/api/cashiers?id=${cashierId}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.length > 0) {
+        return data[0].fullName;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch cashier:', error);
+  }
+  return cashierId; // Fallback to cashier ID if name not found
+}
+
+export async function printReceipt(
   transaction: Transaction,
   storeName: string,
   storeAddress?: string,
@@ -15,9 +31,13 @@ export function printReceipt(
     return;
   }
 
+  // Get cashier name before generating receipt
+  const cashierName = await getCashierName(transaction.cashierId);
+
   const receiptHtml = generateReceiptHtml(
     transaction,
     storeName,
+    cashierName,
     storeAddress,
     storePhone,
     receiptFooter
@@ -37,6 +57,7 @@ export function printReceipt(
 export function generateReceiptHtml(
   transaction: Transaction,
   storeName: string,
+  cashierName: string,
   storeAddress?: string,
   storePhone?: string,
   receiptFooter?: string
@@ -134,7 +155,7 @@ export function generateReceiptHtml(
         </tr>
         <tr>
           <td>Kasir</td>
-          <td class="text-right">${transaction.cashier?.fullName || '-'}</td>
+          <td class="text-right">${cashierName || '-'}</td>
         </tr>
         ${transaction.customerName ? `
         <tr>
@@ -236,7 +257,7 @@ export function generateReceiptHtml(
   `;
 }
 
-export function printDailyReport(
+export async function printDailyReport(
   transactions: Transaction[],
   date: Date,
   storeName: string
@@ -251,6 +272,30 @@ export function printDailyReport(
   const totalRevenue = transactions.reduce((sum, t) => sum + t.total, 0);
   const totalTransactions = transactions.length;
   const totalTax = transactions.reduce((sum, t) => sum + t.tax, 0);
+
+  // Fetch all unique cashier names
+  const cashierIds = [...new Set(transactions.map(t => t.cashierId))];
+  const cashierMap: Record<string, string> = {};
+  
+  await Promise.all(
+    cashierIds.map(async (id) => {
+      try {
+        const res = await fetch(`/api/cashiers?id=${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.length > 0) {
+            cashierMap[id] = data[0].fullName;
+          } else {
+            cashierMap[id] = id;
+          }
+        } else {
+          cashierMap[id] = id;
+        }
+      } catch (error) {
+        cashierMap[id] = id;
+      }
+    })
+  );
 
   const html = `
     <!DOCTYPE html>
@@ -333,6 +378,7 @@ export function printDailyReport(
           <tr>
             <th>Invoice</th>
             <th>Waktu</th>
+            <th>Kasir</th>
             <th>Pelanggan</th>
             <th>Metode</th>
             <th class="text-right">Total</th>
@@ -345,6 +391,7 @@ export function printDailyReport(
             <tr>
               <td>${t.invoiceNumber}</td>
               <td>${formatDateTime(t.createdAt).split(' ')[1]}</td>
+              <td>${cashierMap[t.cashierId] || t.cashierId || '-'}</td>
               <td>${t.customerName || '-'}</td>
               <td>${t.paymentMethod}</td>
               <td class="text-right">${formatCurrency(t.total)}</td>
@@ -355,7 +402,7 @@ export function printDailyReport(
         </tbody>
         <tfoot>
           <tr>
-            <th colspan="4">TOTAL</th>
+            <th colspan="5">TOTAL</th>
             <th class="text-right">${formatCurrency(totalRevenue)}</th>
           </tr>
         </tfoot>

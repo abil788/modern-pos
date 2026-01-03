@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Transaction } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { Printer, Download, X } from 'lucide-react';
@@ -15,6 +15,12 @@ interface ReceiptProps {
   onClose: () => void;
 }
 
+interface Cashier {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
 export function Receipt({
   transaction,
   storeName,
@@ -25,6 +31,32 @@ export function Receipt({
   onClose,
 }: ReceiptProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
+  const [cashierName, setCashierName] = useState<string>('');
+
+  useEffect(() => {
+    if (transaction.cashierId) {
+      loadCashierName(transaction.cashierId);
+    }
+  }, [transaction.cashierId]);
+
+  const loadCashierName = async (cashierId: string) => {
+    try {
+      const res = await fetch(`/api/cashiers?id=${cashierId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.length > 0) {
+          setCashierName(data[0].fullName);
+        } else {
+          setCashierName(cashierId);
+        }
+      } else {
+        setCashierName(cashierId);
+      }
+    } catch (error) {
+      console.error('Failed to load cashier:', error);
+      setCashierName(cashierId);
+    }
+  };
 
   const handlePrint = () => {
     window.print();
@@ -97,7 +129,7 @@ export function Receipt({
               </div>
               <div className="flex justify-between">
                 <span>Kasir:</span>
-                <span>{transaction.cashier?.fullName || '-'}</span>
+                <span>{cashierName || transaction.cashierId || '-'}</span>
               </div>
               {transaction.customerName && (
                 <div className="flex justify-between">

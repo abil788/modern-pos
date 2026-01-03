@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Barcode, ShoppingCart, Settings, Menu } from 'lucide-react';
+import { Search, Scan, ShoppingCart, Settings, Menu } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { Product, Category, Transaction } from '@/types';
@@ -75,6 +75,7 @@ export default function KasirPage() {
       name: product.name,
       price: product.price,
       image: product.image,
+      discount: 0, // Add default discount value
     });
     toast.success(`${product.name} ditambahkan`);
   };
@@ -212,7 +213,7 @@ export default function KasirPage() {
                 onClick={() => setShowScanner(true)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
               >
-                <Barcode className="w-5 h-5" />
+                <Scan className="w-5 h-5" />
                 Scan
               </button>
             </div>
