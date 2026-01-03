@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Scan, ShoppingCart, Settings, Menu } from 'lucide-react';
+import { Search, Scan, ShoppingCart, Menu } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { Product, Category, Transaction } from '@/types';
@@ -75,7 +75,7 @@ export default function KasirPage() {
       name: product.name,
       price: product.price,
       image: product.image,
-      discount: 0, // Add default discount value
+      discount: 0,
     });
     toast.success(`${product.name} ditambahkan`);
   };
@@ -97,7 +97,10 @@ export default function KasirPage() {
   };
 
   const handleCheckout = async () => {
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      toast.error('Keranjang kosong!');
+      return;
+    }
 
     const subtotal = getSubtotal();
     const tax = store?.taxRate ? (subtotal * store.taxRate) / 100 : 0;
@@ -120,7 +123,7 @@ export default function KasirPage() {
           quantity: item.quantity,
           price: item.price,
           subtotal: item.subtotal,
-          discount: item.discount,
+          discount: item.discount || 0,
         })),
         subtotal,
         tax,
@@ -131,9 +134,10 @@ export default function KasirPage() {
         change: Math.max(0, change),
         customerName: customerName || undefined,
         notes: notes || undefined,
-        cashierId: 'demo-cashier',
         storeId: store?.id || 'demo-store',
       };
+
+      console.log('Sending transaction:', transactionData);
 
       const res = await fetch('/api/transactions', {
         method: 'POST',
@@ -141,7 +145,10 @@ export default function KasirPage() {
         body: JSON.stringify(transactionData),
       });
 
-      if (!res.ok) throw new Error('Failed to create transaction');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to create transaction');
+      }
 
       const transaction = await res.json();
       
@@ -158,9 +165,9 @@ export default function KasirPage() {
       setNotes('');
       setPaymentMethod('CASH');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Transaction error:', error);
-      toast.error('Gagal memproses transaksi');
+      toast.error(error.message || 'Gagal memproses transaksi');
     } finally {
       setLoading(false);
     }
@@ -177,28 +184,18 @@ export default function KasirPage() {
       <NotificationBanner />
       <Toaster position="top-right" />
       
-      <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="flex h-full bg-gray-50 dark:bg-gray-900">
         {/* Product Grid */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Header */}
           <header className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <button className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                  <Menu className="w-6 h-6" />
-                </button>
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Kasir POS</h1>
-              </div>
-              <div className="flex items-center gap-2">
-                <ThemeToggle />
-                <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
-                  <Settings className="w-6 h-6 dark:text-gray-300" />
-                </button>
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Kasir POS</h1>
+              <ThemeToggle />
             </div>
 
             {/* Search & Scanner */}
-            <div className="flex gap-4 mt-4">
+            <div className="flex gap-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input

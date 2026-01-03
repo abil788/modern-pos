@@ -58,15 +58,40 @@ export async function POST(request: NextRequest) {
       customerName,
       customerPhone,
       notes,
-      cashierId,
       storeId,
     } = body;
 
-    if (!items || items.length === 0 || !storeId || !cashierId) {
+    console.log('Received transaction data:', body);
+
+    if (!items || items.length === 0 || !storeId) {
       return NextResponse.json(
-        { error: 'Items, store ID, and cashier ID are required' },
+        { error: 'Items and store ID are required' },
         { status: 400 }
       );
+    }
+
+    // Get or create default cashier
+    let cashier = await prisma.user.findFirst({
+      where: {
+        storeId,
+        role: 'CASHIER',
+      },
+    });
+
+    // If no cashier exists, create a default one
+    if (!cashier) {
+      const bcrypt = require('bcryptjs');
+      const hashedPassword = await bcrypt.hash('kasir123', 10);
+      
+      cashier = await prisma.user.create({
+        data: {
+          username: 'kasir',
+          password: hashedPassword,
+          role: 'CASHIER',
+          fullName: 'Kasir Default',
+          storeId,
+        },
+      });
     }
 
     const invoiceNumber = await generateInvoiceNumber(storeId);
@@ -75,49 +100,63 @@ export async function POST(request: NextRequest) {
     const transaction = await prisma.transaction.create({
       data: {
         invoiceNumber,
-        subtotal: parseFloat(subtotal),
-        tax: parseFloat(tax) || 0,
-        discount: parseFloat(discount) || 0,
-        total: parseFloat(total),
+        subtotal: parseFloat(subtotal.toString()),
+        tax: parseFloat(tax?.toString() || '0'),
+        discount: parseFloat(discount?.toString() || '0'),
+        total: parseFloat(total.toString()),
         paymentMethod,
-        amountPaid: parseFloat(amountPaid),
-        change: parseFloat(change) || 0,
-        customerName,
-        customerPhone,
-        notes,
-        cashierId,
+        amountPaid: parseFloat(amountPaid.toString()),
+        change: parseFloat(change?.toString() || '0'),
+        customerName: customerName || null,
+        customerPhone: customerPhone || null,
+        notes: notes || null,
+        cashierId: cashier.id,
         storeId,
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,
             productName: item.name,
-            quantity: item.quantity,
-            price: parseFloat(item.price),
-            subtotal: parseFloat(item.subtotal),
-            discount: parseFloat(item.discount) || 0,
+            quantity: parseInt(item.quantity.toString()),
+            price: parseFloat(item.price.toString()),
+            subtotal: parseFloat(item.subtotal.toString()),
+            discount: parseFloat(item.discount?.toString() || '0'),
           })),
         },
       },
       include: {
         items: true,
+        cashier: {
+          select: {
+            fullName: true,
+          },
+        },
       },
     });
 
     // Update product stock
     for (const item of items) {
-      await prisma.product.update({
-        where: { id: item.productId },
-        data: {
-          stock: {
-            decrement: item.quantity,
+      try {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: {
+              decrement: parseInt(item.quantity.toString()),
+            },
           },
-        },
-      });
+        });
+      } catch (error) {
+        console.error(`Failed to update stock for product ${item.productId}:`, error);
+      }
     }
 
+    console.log('Transaction created successfully:', transaction.id);
+
     return NextResponse.json(transaction, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating transaction:', error);
-    return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || 'Failed to create transaction' },
+      { status: 500 }
+    );
   }
 }
