@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now(); // Performance monitoring
+  
   try {
     const searchParams = request.nextUrl.searchParams;
     const storeId = searchParams.get('storeId');
     const search = searchParams.get('search');
     const categoryId = searchParams.get('categoryId');
     const barcode = searchParams.get('barcode');
+    
+    // Pagination parameters
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = (page - 1) * limit;
 
     if (!storeId) {
       return NextResponse.json({ error: 'Store ID required' }, { status: 400 });
@@ -33,25 +40,49 @@ export async function GET(request: NextRequest) {
       where.barcode = barcode;
     }
 
-    const products = await prisma.product.findMany({
-      where,
-      include: {
-        category: true,
-        variations: true,
+    // Parallel queries untuk performa lebih baik
+    const [products, totalCount] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        include: {
+          category: true,
+          variations: true,
+        },
+        orderBy: {
+          name: 'asc',
+        },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.product.count({ where }), // Total count untuk pagination info
+    ]);
+
+    const queryTime = Date.now() - startTime;
+    console.log(`[PRODUCTS API] Query took: ${queryTime}ms | Products: ${products.length} | Page: ${page}`);
+
+    return NextResponse.json({
+      products,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasMore: offset + products.length < totalCount,
       },
-      orderBy: {
-        name: 'asc',
+      performance: {
+        queryTime: `${queryTime}ms`,
       },
     });
-
-    return NextResponse.json(products);
   } catch (error) {
-    console.error('Error fetching products:', error);
+    const queryTime = Date.now() - startTime;
+    console.error(`[PRODUCTS API] Error after ${queryTime}ms:`, error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     const body = await request.json();
     const {
@@ -106,9 +137,14 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const queryTime = Date.now() - startTime;
+    console.log(`[PRODUCTS API] Product created in ${queryTime}ms | ID: ${product.id}`);
+
     return NextResponse.json(product, { status: 201 });
   } catch (error: any) {
-    console.error('Error creating product:', error);
+    const queryTime = Date.now() - startTime;
+    console.error(`[PRODUCTS API] Create error after ${queryTime}ms:`, error);
+    
     if (error.code === 'P2002') {
       return NextResponse.json(
         { error: 'SKU or barcode already exists' },
@@ -120,6 +156,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     const body = await request.json();
     const { id, ...data } = body;
@@ -143,14 +181,20 @@ export async function PUT(request: NextRequest) {
       },
     });
 
+    const queryTime = Date.now() - startTime;
+    console.log(`[PRODUCTS API] Product updated in ${queryTime}ms | ID: ${id}`);
+
     return NextResponse.json(product);
   } catch (error) {
-    console.error('Error updating product:', error);
+    const queryTime = Date.now() - startTime;
+    console.error(`[PRODUCTS API] Update error after ${queryTime}ms:`, error);
     return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     const searchParams = request.nextUrl.searchParams;
     const id = searchParams.get('id');
@@ -163,9 +207,13 @@ export async function DELETE(request: NextRequest) {
       where: { id },
     });
 
+    const queryTime = Date.now() - startTime;
+    console.log(`[PRODUCTS API] Product deleted in ${queryTime}ms | ID: ${id}`);
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting product:', error);
+    const queryTime = Date.now() - startTime;
+    console.error(`[PRODUCTS API] Delete error after ${queryTime}ms:`, error);
     return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
   }
 }

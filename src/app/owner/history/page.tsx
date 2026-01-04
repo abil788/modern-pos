@@ -13,26 +13,38 @@ interface Cashier {
 }
 
 export default function HistoryPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [cashiers, setCashiers] = useState<Record<string, Cashier>>({});
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-  const [dateFilter, setDateFilter] = useState('all');
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [cashiers, setCashiers] = useState<Record<string, Cashier>>({});
+    const [loading, setLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+    const [dateFilter, setDateFilter] = useState('all');
 
-  useEffect(() => {
-    loadTransactions();
-    loadCashiers();
-  }, []);
+    useEffect(() => {
+      loadTransactions();
+      loadCashiers();
+    }, []);
 
-  const loadTransactions = async () => {
+    const loadTransactions = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/transactions?storeId=demo-store');
+      const res = await fetch('/api/transactions?storeId=demo-store&limit=1000');
       const data = await res.json();
-      setTransactions(data);
+      
+      // Handle new API response format with pagination
+      if (data.transactions && Array.isArray(data.transactions)) {
+        setTransactions(data.transactions);
+      } else if (Array.isArray(data)) {
+        // Fallback for old API format
+        setTransactions(data);
+      } else {
+        console.error('Unexpected API response format:', data);
+        setTransactions([]);
+      }
     } catch (error) {
+      console.error('Error loading transactions:', error);
       toast.error('Gagal memuat history transaksi');
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -56,8 +68,8 @@ export default function HistoryPage() {
     }
   };
 
-  const filteredTransactions = transactions.filter((transaction) => {
-    const matchSearch =
+  const filteredTransactions = (Array.isArray(transactions) ? transactions : []).filter((transaction) => {
+  const matchSearch =
       transaction.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       transaction.customerName?.toLowerCase().includes(searchQuery.toLowerCase());
 

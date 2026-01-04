@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Scan, ShoppingCart, Menu } from 'lucide-react';
+import { Search, Scan, ShoppingCart } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { Product, Category, Transaction } from '@/types';
@@ -11,6 +11,7 @@ import { Receipt } from '@/components/shared/Receipt';
 import { NotificationBanner } from '@/components/shared/NotificationBanner';
 import { ThemeToggle } from '@/components/shared/ThemeToggle';
 import toast, { Toaster } from 'react-hot-toast';
+import { Package } from 'lucide-react'; 
 
 export default function KasirPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -21,13 +22,13 @@ export default function KasirPage() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [completedTransaction, setCompletedTransaction] = useState<Transaction | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   // Checkout state
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'QRIS' | 'TRANSFER'>('CASH');
   const [amountPaid, setAmountPaid] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(false);
   
   const { items, addItem, removeItem, updateQuantity, getTotal, getSubtotal, clearCart, loadCart } = useCartStore();
   const { store } = useSettingsStore();
@@ -40,11 +41,23 @@ export default function KasirPage() {
 
   const loadProducts = async () => {
     try {
-      const res = await fetch(`/api/products?storeId=${store?.id || 'demo-store'}`);
+      const res = await fetch(`/api/products?storeId=${store?.id || 'demo-store'}&limit=1000`);
       const data = await res.json();
-      setProducts(data);
+      
+      // Handle new API response format with pagination
+      if (data.products && Array.isArray(data.products)) {
+        setProducts(data.products);
+      } else if (Array.isArray(data)) {
+        // Fallback for old API format
+        setProducts(data);
+      } else {
+        console.error('Unexpected API response format:', data);
+        setProducts([]);
+      }
     } catch (error) {
+      console.error('Error loading products:', error);
       toast.error('Gagal memuat produk');
+      setProducts([]);
     }
   };
 
@@ -52,9 +65,11 @@ export default function KasirPage() {
     try {
       const res = await fetch(`/api/categories?storeId=${store?.id || 'demo-store'}`);
       const data = await res.json();
-      setCategories(data);
+      setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
+      console.error('Error loading categories:', error);
       toast.error('Gagal memuat kategori');
+      setCategories([]);
     }
   };
 
@@ -85,13 +100,22 @@ export default function KasirPage() {
       const res = await fetch(`/api/products?storeId=${store?.id || 'demo-store'}&barcode=${barcode}`);
       const data = await res.json();
       
-      if (data.length > 0) {
-        const product = data[0];
+      // Handle new API response format
+      let productList = [];
+      if (data.products && Array.isArray(data.products)) {
+        productList = data.products;
+      } else if (Array.isArray(data)) {
+        productList = data;
+      }
+      
+      if (productList.length > 0) {
+        const product = productList[0];
         handleAddToCart(product);
       } else {
         toast.error('Produk tidak ditemukan');
       }
     } catch (error) {
+      console.error('Error scanning barcode:', error);
       toast.error('Gagal mencari produk');
     }
   };
@@ -137,8 +161,6 @@ export default function KasirPage() {
         storeId: store?.id || 'demo-store',
       };
 
-      console.log('Sending transaction:', transactionData);
-
       const res = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,6 +187,9 @@ export default function KasirPage() {
       setNotes('');
       setPaymentMethod('CASH');
       
+      // Reload products to update stock
+      loadProducts();
+      
     } catch (error: any) {
       console.error('Transaction error:', error);
       toast.error(error.message || 'Gagal memproses transaksi');
@@ -190,6 +215,7 @@ export default function KasirPage() {
           {/* Header */}
           <header className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-4">
             <div className="flex items-center justify-between mb-4">
+              <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Kasir POS</h1>
               <ThemeToggle />
             </div>
 
@@ -244,38 +270,48 @@ export default function KasirPage() {
 
           {/* Products Grid */}
           <div className="flex-1 overflow-y-auto p-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {filteredProducts.map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() => handleAddToCart(product)}
-                  className="bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-lg transition-shadow border dark:border-gray-700"
-                  disabled={product.stock <= 0}
-                >
-                  {product.image ? (
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-32 object-cover rounded-lg mb-2"
-                    />
-                  ) : (
-                    <div className="w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg mb-2 flex items-center justify-center">
-                      <span className="text-4xl">📦</span>
-                    </div>
-                  )}
-                  <h3 className="font-semibold text-sm mb-1 truncate dark:text-white">{product.name}</h3>
-                  <p className="text-blue-600 dark:text-blue-400 font-bold">{formatCurrency(product.price)}</p>
-                  <p className={`text-xs mt-1 ${product.stock <= product.minStock ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'}`}>
-                    Stok: {product.stock}
-                  </p>
-                </button>
-              ))}
-            </div>
+            {filteredProducts.length === 0 ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center text-gray-400">
+                  <Package className="w-16 h-16 mx-auto mb-2 opacity-50" />
+                  <p>Tidak ada produk ditemukan</p>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {filteredProducts.map((product) => (
+                  <button
+                    key={product.id}
+                    onClick={() => handleAddToCart(product)}
+                    className="bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-lg transition-shadow border dark:border-gray-700"
+                    disabled={product.stock <= 0}
+                  >
+                    {product.image ? (
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="w-full h-32 object-cover rounded-lg mb-2"
+                      />
+                    ) : (
+                      <div className="w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg mb-2 flex items-center justify-center">
+                        <span className="text-4xl">📦</span>
+                      </div>
+                    )}
+                    <h3 className="font-semibold text-sm mb-1 truncate dark:text-white">{product.name}</h3>
+                    <p className="text-blue-600 dark:text-blue-400 font-bold">{formatCurrency(product.price)}</p>
+                    <p className={`text-xs mt-1 ${product.stock <= product.minStock ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'}`}>
+                      Stok: {product.stock}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Cart Sidebar */}
+        {/* Cart Sidebar - Keep the rest of your existing cart code here */}
         <div className="w-96 bg-white dark:bg-gray-800 border-l dark:border-gray-700 flex flex-col">
+          {/* ... rest of cart sidebar code stays the same ... */}
           <div className="p-4 border-b dark:border-gray-700">
             <h2 className="text-xl font-bold flex items-center gap-2 dark:text-white">
               <ShoppingCart className="w-6 h-6" />
@@ -283,7 +319,6 @@ export default function KasirPage() {
             </h2>
           </div>
 
-          {/* Cart Items */}
           <div className="flex-1 overflow-y-auto p-4">
             {items.length === 0 ? (
               <div className="text-center text-gray-400 mt-20">
@@ -330,7 +365,6 @@ export default function KasirPage() {
             )}
           </div>
 
-          {/* Total & Checkout */}
           <div className="border-t dark:border-gray-700 p-4">
             <div className="space-y-2 mb-4">
               <div className="flex justify-between">
@@ -359,7 +393,7 @@ export default function KasirPage() {
         </div>
       </div>
 
-      {/* Barcode Scanner Modal */}
+      {/* Keep all your existing modals (Barcode Scanner, Checkout, Receipt) */}
       <BarcodeScanner
         isOpen={showScanner}
         onClose={() => setShowScanner(false)}
@@ -414,20 +448,21 @@ export default function KasirPage() {
                   {(['CASH', 'CARD', 'QRIS', 'TRANSFER'] as const).map((method) => (
                     <button
                       key={method}
+                      type="button"
                       onClick={() => setPaymentMethod(method)}
                       className={`p-4 border-2 rounded-lg transition-colors ${
                         paymentMethod === method
-                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900'
-                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900 dark:text-white'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:text-white'
                       }`}
                     >
-                      <span className="font-semibold dark:text-white">{method}</span>
+                      <span className="font-semibold">{method}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Amount Paid */}
+              {/* Amount Paid - Untuk CASH */}
               {paymentMethod === 'CASH' && (
                 <div>
                   <label className="block font-semibold mb-2 dark:text-white">Jumlah Bayar</label>
@@ -437,6 +472,7 @@ export default function KasirPage() {
                     onChange={(e) => setAmountPaid(e.target.value)}
                     placeholder="0"
                     className="w-full p-3 border dark:border-gray-600 rounded-lg text-lg font-semibold dark:bg-gray-700 dark:text-white"
+                    autoFocus
                   />
                   {change >= 0 && amountPaid && (
                     <div className="mt-2 p-3 bg-green-50 dark:bg-green-900 rounded-lg">
@@ -446,6 +482,15 @@ export default function KasirPage() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Auto-fill untuk metode non-CASH */}
+              {paymentMethod !== 'CASH' && (
+                <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    ✓ Pembayaran {paymentMethod}: <strong>{formatCurrency(total)}</strong>
+                  </p>
                 </div>
               )}
 
@@ -476,14 +521,16 @@ export default function KasirPage() {
 
             <div className="p-6 border-t dark:border-gray-700 flex gap-3">
               <button
+                type="button"
                 onClick={() => setShowCheckout(false)}
                 className="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-semibold"
               >
                 Batal
               </button>
               <button
+                type="button"
                 onClick={handleCheckout}
-                disabled={loading || (paymentMethod === 'CASH' && paid < total)}
+                disabled={loading || (paymentMethod === 'CASH' && (!amountPaid || paid < total))}
                 className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 {loading ? 'Memproses...' : 'Bayar Sekarang'}
@@ -493,7 +540,7 @@ export default function KasirPage() {
         </div>
       )}
 
-      {/* Receipt Modal */}
+      {/* Receipt Modal - Keep existing code */}
       {completedTransaction && (
         <Receipt
           transaction={completedTransaction}

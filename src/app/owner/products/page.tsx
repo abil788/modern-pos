@@ -23,11 +23,23 @@ export default function ProductsPage() {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/products?storeId=demo-store');
+      const res = await fetch('/api/products?storeId=demo-store&limit=1000');
       const data = await res.json();
-      setProducts(data);
+      
+      // Handle new API response format with pagination
+      if (data.products && Array.isArray(data.products)) {
+        setProducts(data.products);
+      } else if (Array.isArray(data)) {
+        // Fallback for old API format
+        setProducts(data);
+      } else {
+        console.error('Unexpected API response format:', data);
+        setProducts([]);
+      }
     } catch (error) {
+      console.error('Error loading products:', error);
       toast.error('Gagal memuat produk');
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -77,7 +89,7 @@ export default function ProductsPage() {
     handleCloseForm();
   };
 
-  const filteredProducts = products.filter((product) =>
+  const filteredProducts = (Array.isArray(products) ? products : []).filter((product) =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.sku?.toLowerCase().includes(searchQuery.toLowerCase())
   );

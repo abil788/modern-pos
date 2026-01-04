@@ -1,12 +1,20 @@
+// src/app/api/transactions/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { generateInvoiceNumber } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     const searchParams = request.nextUrl.searchParams;
     const storeId = searchParams.get('storeId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    
+    // Pagination
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = (page - 1) * limit;
 
     if (!storeId) {
       return NextResponse.json({ error: 'Store ID required' }, { status: 400 });
@@ -21,31 +29,54 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    const transactions = await prisma.transaction.findMany({
-      where,
-      include: {
-        items: true,
-        cashier: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
+    const [transactions, totalCount] = await Promise.all([
+      prisma.transaction.findMany({
+        where,
+        include: {
+          items: true,
+          cashier: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+            },
           },
         },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.transaction.count({ where }),
+    ]);
+
+    const queryTime = Date.now() - startTime;
+    console.log(`[TRANSACTIONS API] GET Query took: ${queryTime}ms | Transactions: ${transactions.length} | Page: ${page}`);
+
+    return NextResponse.json({
+      transactions,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasMore: offset + transactions.length < totalCount,
       },
-      orderBy: {
-        createdAt: 'desc',
+      performance: {
+        queryTime: `${queryTime}ms`,
       },
     });
-
-    return NextResponse.json(transactions);
   } catch (error) {
-    console.error('Error fetching transactions:', error);
+    const queryTime = Date.now() - startTime;
+    console.error(`[TRANSACTIONS API] GET Error after ${queryTime}ms:`, error);
     return NextResponse.json({ error: 'Failed to fetch transactions' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+  
   try {
     const body = await request.json();
     const {
@@ -63,7 +94,7 @@ export async function POST(request: NextRequest) {
       storeId,
     } = body;
 
-    console.log('Received transaction data:', body);
+    console.log(`[TRANSACTIONS API] Received transaction data at ${new Date().toISOString()}`);
 
     if (!items || items.length === 0 || !storeId) {
       return NextResponse.json(
@@ -73,6 +104,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get or create default cashier
+    const cashierStartTime = Date.now();
     let cashier = await prisma.user.findFirst({
       where: {
         storeId,
@@ -80,7 +112,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // If no cashier exists, create a default one
     if (!cashier) {
       const bcrypt = require('bcryptjs');
       const hashedPassword = await bcrypt.hash('kasir123', 10);
@@ -95,10 +126,15 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+    console.log(`[TRANSACTIONS API] Cashier lookup: ${Date.now() - cashierStartTime}ms`);
 
+    // Generate invoice
+    const invoiceStartTime = Date.now();
     const invoiceNumber = await generateInvoiceNumber(storeId);
+    console.log(`[TRANSACTIONS API] Invoice generation: ${Date.now() - invoiceStartTime}ms`);
 
     // Create transaction with items
+    const transactionStartTime = Date.now();
     const transaction = await prisma.transaction.create({
       data: {
         invoiceNumber,
@@ -136,28 +172,44 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+    console.log(`[TRANSACTIONS API] Transaction creation: ${Date.now() - transactionStartTime}ms`);
 
-    // Update product stock
-    for (const item of items) {
-      try {
-        await prisma.product.update({
+    // Update product stock in parallel
+    const stockStartTime = Date.now();
+    await Promise.all(
+      items.map((item: any) =>
+        prisma.product.update({
           where: { id: item.productId },
           data: {
             stock: {
               decrement: parseInt(item.quantity.toString()),
             },
           },
-        });
-      } catch (error) {
-        console.error(`Failed to update stock for product ${item.productId}:`, error);
-      }
-    }
+        }).catch((error) => {
+          console.error(`[TRANSACTIONS API] Failed to update stock for product ${item.productId}:`, error);
+        })
+      )
+    );
+    console.log(`[TRANSACTIONS API] Stock update: ${Date.now() - stockStartTime}ms`);
 
-    console.log('Transaction created successfully:', transaction.id);
+    const totalTime = Date.now() - startTime;
+    console.log(`[TRANSACTIONS API] Transaction created successfully in ${totalTime}ms | ID: ${transaction.id}`);
 
-    return NextResponse.json(transaction, { status: 201 });
+    return NextResponse.json({
+      ...transaction,
+      performance: {
+        totalTime: `${totalTime}ms`,
+        breakdown: {
+          cashierLookup: `${Date.now() - cashierStartTime}ms`,
+          invoiceGeneration: `${Date.now() - invoiceStartTime}ms`,
+          transactionCreation: `${Date.now() - transactionStartTime}ms`,
+          stockUpdate: `${Date.now() - stockStartTime}ms`,
+        },
+      },
+    }, { status: 201 });
   } catch (error: any) {
-    console.error('Error creating transaction:', error);
+    const queryTime = Date.now() - startTime;
+    console.error(`[TRANSACTIONS API] POST Error after ${queryTime}ms:`, error);
     return NextResponse.json(
       { error: error.message || 'Failed to create transaction' },
       { status: 500 }

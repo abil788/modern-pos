@@ -1,3 +1,4 @@
+// src/lib/db.ts
 import { PrismaClient } from '@prisma/client';
 
 const globalForPrisma = globalThis as unknown as {
@@ -7,16 +8,24 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    log: process.env.NODE_ENV === 'development' 
+      ? ['query', 'error', 'warn'] 
+      : ['error'],
   });
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}
 
 // Helper functions
 export async function getStoreSettings(storeId: string) {
+  const startTime = Date.now();
+  
   const settings = await prisma.setting.findMany({
     where: { storeId },
   });
+  
+  console.log(`[DB] getStoreSettings took ${Date.now() - startTime}ms`);
   
   return settings.reduce((acc, setting) => {
     acc[setting.key] = setting.value;
@@ -25,7 +34,9 @@ export async function getStoreSettings(storeId: string) {
 }
 
 export async function updateStoreSetting(storeId: string, key: string, value: string) {
-  return await prisma.setting.upsert({
+  const startTime = Date.now();
+  
+  const result = await prisma.setting.upsert({
     where: {
       storeId_key: {
         storeId,
@@ -39,9 +50,14 @@ export async function updateStoreSetting(storeId: string, key: string, value: st
       value,
     },
   });
+  
+  console.log(`[DB] updateStoreSetting took ${Date.now() - startTime}ms`);
+  return result;
 }
 
 export async function generateInvoiceNumber(storeId: string): Promise<string> {
+  const startTime = Date.now();
+  
   const today = new Date();
   const prefix = `INV-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
   
@@ -55,6 +71,9 @@ export async function generateInvoiceNumber(storeId: string): Promise<string> {
     orderBy: {
       invoiceNumber: 'desc',
     },
+    select: {
+      invoiceNumber: true,
+    },
   });
 
   let sequence = 1;
@@ -63,7 +82,11 @@ export async function generateInvoiceNumber(storeId: string): Promise<string> {
     sequence = lastSequence + 1;
   }
 
-  return `${prefix}-${String(sequence).padStart(4, '0')}`;
+  const invoiceNumber = `${prefix}-${String(sequence).padStart(4, '0')}`;
+  
+  console.log(`[DB] generateInvoiceNumber took ${Date.now() - startTime}ms | Invoice: ${invoiceNumber}`);
+  
+  return invoiceNumber;
 }
 
 export async function logActivity(
@@ -72,6 +95,8 @@ export async function logActivity(
   action: string,
   details?: string
 ) {
+  const startTime = Date.now();
+  
   await prisma.activityLog.create({
     data: {
       userId,
@@ -80,6 +105,14 @@ export async function logActivity(
       details,
     },
   });
+  
+  console.log(`[DB] logActivity took ${Date.now() - startTime}ms`);
 }
+
+// Graceful shutdown
+process.on('beforeExit', async () => {
+  console.log('[DB] Disconnecting Prisma...');
+  await prisma.$disconnect();
+});
 
 export default prisma;

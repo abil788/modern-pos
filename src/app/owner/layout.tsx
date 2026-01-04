@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, Package, Receipt, DollarSign, 
   Settings, LogOut, ChevronLeft, ChevronRight,
-  Tag, History, Lock, Eye, EyeOff, X
+  Tag, History, Lock, Eye, EyeOff
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -24,6 +24,18 @@ const navigation = [
 const OWNER_SESSION_KEY = 'owner_session';
 const SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 jam
 
+// Loading fallback component
+function LoadingFallback() {
+  return (
+    <div className="flex items-center justify-center h-screen bg-gray-900">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+        <p className="text-gray-400">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
 export default function OwnerLayout({
   children,
 }: {
@@ -39,10 +51,10 @@ export default function OwnerLayout({
   const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
 
-  // Check authentication on mount and route change
+  // Check authentication on mount
   useEffect(() => {
     checkAuth();
-  }, [pathname]);
+  }, []);
 
   const checkAuth = () => {
     const session = localStorage.getItem(OWNER_SESSION_KEY);
@@ -110,14 +122,7 @@ export default function OwnerLayout({
 
   // Show loading state
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-400">Memuat...</p>
-        </div>
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   // Show password modal if not authenticated
@@ -263,8 +268,12 @@ export default function OwnerLayout({
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      {/* Main Content with Suspense */}
+      <main className="flex-1 overflow-y-auto">
+        <Suspense fallback={<LoadingFallback />}>
+          {children}
+        </Suspense>
+      </main>
     </div>
   );
 }
