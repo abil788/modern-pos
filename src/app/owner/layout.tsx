@@ -1,3 +1,5 @@
+// 📁 src/app/owner/layout.tsx
+
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -6,7 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, Package, Receipt, DollarSign, 
   Settings, LogOut, ChevronLeft, ChevronRight,
-  Tag, History, Lock, Eye, EyeOff
+  Tag, History, Lock, Eye, EyeOff, Users // 👈 TAMBAH Users DISINI
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -14,6 +16,7 @@ const navigation = [
   { name: 'Dashboard', href: '/owner', icon: LayoutDashboard },
   { name: 'Produk', href: '/owner/products', icon: Package },
   { name: 'Kategori', href: '/owner/categories', icon: Tag },
+  { name: 'Staff', href: '/owner/staff', icon: Users }, // 👈 GUNAKAN Users DISINI
   { name: 'Laporan', href: '/owner/reports', icon: Receipt },
   { name: 'Pengeluaran', href: '/owner/expenses', icon: DollarSign },
   { name: 'History', href: '/owner/history', icon: History },
@@ -112,7 +115,7 @@ export default function OwnerLayout({
       localStorage.removeItem(OWNER_SESSION_KEY);
       setIsAuthenticated(false);
       toast.success('Logout berhasil!');
-      router.push('/kasir');
+      router.push('/login');
     }
   };
 
@@ -142,7 +145,7 @@ export default function OwnerLayout({
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="p-6 space-y-4">
+          <div className="p-6 space-y-4">
             <div>
               <label className="block text-sm font-semibold mb-2 dark:text-white">
                 Password Owner
@@ -152,10 +155,12 @@ export default function OwnerLayout({
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') handleLogin(e as any);
+                  }}
                   placeholder="Masukkan password"
                   className="w-full p-3 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white pr-10"
                   autoFocus
-                  required
                 />
                 <button
                   type="button"
@@ -179,14 +184,14 @@ export default function OwnerLayout({
                 Kembali ke Kasir
               </button>
               <button
-                type="submit"
+                onClick={(e) => handleLogin(e)}
                 disabled={loginLoading || !password}
                 className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 {loginLoading ? 'Memverifikasi...' : 'Masuk'}
               </button>
             </div>
-          </form>
+          </div>
 
           <div className="px-6 pb-6">
             <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">

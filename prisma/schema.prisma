@@ -1,4 +1,4 @@
-// Prisma Schema - Modern POS System
+// Prisma Schema - Modern POS System dengan Visual Authentication
 // Database: PostgreSQL 14+
 
 generator client {
@@ -36,22 +36,28 @@ model Store {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  password     String
-  role         String   @default("CASHIER") // CASHIER, OWNER, ADMIN
+  id           String    @id @default(cuid())
+  username     String    @unique
+  password     String    // Hanya untuk OWNER
+  pin          String?   // 4 digit PIN untuk KASIR
+  role         String    @default("CASHIER") // CASHIER, OWNER
   fullName     String
-  isLocked     Boolean  @default(false)
+  photo        String?   // URL foto profil kasir
+  isActive     Boolean   @default(true)
+  isLocked     Boolean   @default(false)
   lockedUntil  DateTime?
-  failedAttempts Int    @default(0)
+  failedAttempts Int     @default(0)
   lastLogin    DateTime?
   storeId      String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   store         Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   transactions  Transaction[]
   activityLogs  ActivityLog[]
+
+  @@index([storeId, isActive])
+  @@index([role])
 }
 
 model Category {
@@ -217,4 +223,5 @@ model ActivityLog {
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
+  @@index([userId])
 }

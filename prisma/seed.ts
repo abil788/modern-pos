@@ -1,3 +1,5 @@
+// 📁 prisma/seed.ts
+
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -19,7 +21,7 @@ async function main() {
       currency: 'IDR',
       taxRate: 10,
       receiptFooter: 'Terima kasih atas kunjungan Anda!\nSelamat berbelanja kembali 😊',
-      primaryColor: '#3B82F6',
+      primaryColor: '#8B5CF6',
       isActive: true,
     },
   });
@@ -37,51 +39,82 @@ async function main() {
       role: 'OWNER',
       fullName: 'Store Owner',
       storeId: store.id,
+      isActive: true,
     },
   });
 
   console.log('✅ Owner created:', owner.username);
 
-  // Create cashier user
-  const cashierPassword = await bcrypt.hash('kasir123', 10);
-  const cashier = await prisma.user.upsert({
-    where: { username: 'kasir' },
-    update: {},
-    create: {
-      username: 'kasir',
-      password: cashierPassword,
-      role: 'CASHIER',
-      fullName: 'Kasir 1',
-      storeId: store.id,
+  // Create cashiers with PIN and photos
+  const cashiers = [
+    {
+      username: 'budi',
+      fullName: 'Budi Santoso',
+      pin: '1234',
+      photo: 'https://i.pravatar.cc/150?img=12',
     },
-  });
+    {
+      username: 'siti',
+      fullName: 'Siti Nurhaliza',
+      pin: '5678',
+      photo: 'https://i.pravatar.cc/150?img=5',
+    },
+    {
+      username: 'ahmad',
+      fullName: 'Ahmad Fauzi',
+      pin: '9876',
+      photo: 'https://i.pravatar.cc/150?img=33',
+    },
+    {
+      username: 'dewi',
+      fullName: 'Dewi Lestari',
+      pin: '4321',
+      photo: 'https://i.pravatar.cc/150?img=9',
+    },
+  ];
 
-  console.log('✅ Cashier created:', cashier.username);
+  for (const cashierData of cashiers) {
+    const cashier = await prisma.user.upsert({
+      where: { username: cashierData.username },
+      update: {},
+      create: {
+        username: cashierData.username,
+        password: '', // Kasir tidak perlu password
+        pin: cashierData.pin,
+        role: 'CASHIER',
+        fullName: cashierData.fullName,
+        photo: cashierData.photo,
+        storeId: store.id,
+        isActive: true,
+      },
+    });
+    console.log(`✅ Cashier created: ${cashier.fullName} (PIN: ${cashierData.pin})`);
+  }
 
   // Create categories
   const categories = [
     {
       name: 'Makanan',
       icon: '🍔',
-      color: '#FF6B6B',
+      color: '#EF4444',
       storeId: store.id,
     },
     {
       name: 'Minuman',
       icon: '🥤',
-      color: '#4ECDC4',
+      color: '#3B82F6',
       storeId: store.id,
     },
     {
       name: 'Snack',
       icon: '🍿',
-      color: '#FFE66D',
+      color: '#F59E0B',
       storeId: store.id,
     },
     {
       name: 'Alat Tulis',
       icon: '✏️',
-      color: '#A8E6CF',
+      color: '#10B981',
       storeId: store.id,
     },
   ];
@@ -289,7 +322,11 @@ async function main() {
   console.log('\n🎉 Seed completed successfully!\n');
   console.log('📝 Login credentials:');
   console.log('   Owner - username: owner, password: admin123');
-  console.log('   Kasir - username: kasir, password: kasir123');
+  console.log('\n👥 Kasir credentials (Login dengan PIN):');
+  console.log('   1. Budi Santoso - PIN: 1234');
+  console.log('   2. Siti Nurhaliza - PIN: 5678');
+  console.log('   3. Ahmad Fauzi - PIN: 9876');
+  console.log('   4. Dewi Lestari - PIN: 4321');
 }
 
 main()
