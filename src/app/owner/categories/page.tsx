@@ -120,8 +120,8 @@ export default function CategoriesPage() {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Manajemen Kategori</h1>
-          <p className="text-gray-500 mt-1">Kelola kategori produk toko Anda</p>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Manajemen Kategori</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Kelola kategori produk toko Anda</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -141,13 +141,13 @@ export default function CategoriesPage() {
         ) : categories.length === 0 ? (
           <div className="col-span-full text-center py-12">
             <Tag className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-            <p className="text-gray-500">Belum ada kategori</p>
+            <p className="text-gray-500 dark:text-gray-400">Belum ada kategori</p>
           </div>
         ) : (
           categories.map((category) => (
             <div
               key={category.id}
-              className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
               style={{ borderTop: `4px solid ${category.color}` }}
             >
               <div className="p-6">
@@ -161,22 +161,22 @@ export default function CategoriesPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleEdit(category)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                      className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(category.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded"
+                      className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
                   {category.name}
                 </h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   ID: {category.id.slice(0, 8)}...
                 </p>
               </div>
@@ -187,7 +187,6 @@ export default function CategoriesPage() {
                   color: category.color,
                 }}
               >
-                {/* Product count would go here */}
                 Kategori Aktif
               </div>
             </div>
@@ -195,129 +194,134 @@ export default function CategoriesPage() {
         )}
       </div>
 
-      {/* Form Modal */}
+      {/* Form Modal - SCROLLABLE */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full">
-            <div className="p-6 border-b flex items-center justify-between">
-              <h2 className="text-2xl font-bold">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full max-h-[90vh] flex flex-col">
+            {/* Header - Fixed */}
+            <div className="p-6 border-b dark:border-gray-700 flex items-center justify-between flex-shrink-0">
+              <h2 className="text-2xl font-bold dark:text-white">
                 {editingCategory ? 'Edit Kategori' : 'Tambah Kategori'}
               </h2>
-              <button onClick={handleCloseForm} className="p-2 hover:bg-gray-100 rounded">
+              <button onClick={handleCloseForm} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  Nama Kategori <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className="w-full p-2 border rounded-lg"
-                  placeholder="Contoh: Makanan"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Pilih Icon
-                </label>
-                <div className="grid grid-cols-5 gap-2">
-                  {EMOJI_OPTIONS.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, icon: emoji })}
-                      className={`p-3 text-2xl border-2 rounded-lg hover:border-blue-500 ${
-                        formData.icon === emoji
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200'
-                      }`}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-2">
+            {/* Form Content - Scrollable */}
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-1 dark:text-white">
+                    Nama Kategori <span className="text-red-600">*</span>
+                  </label>
                   <input
                     type="text"
-                    value={formData.icon}
+                    value={formData.name}
                     onChange={(e) =>
-                      setFormData({ ...formData, icon: e.target.value })
+                      setFormData({ ...formData, name: e.target.value })
                     }
-                    className="w-full p-2 border rounded-lg text-center text-2xl"
-                    placeholder="Atau ketik emoji"
-                    maxLength={2}
+                    className="w-full p-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                    placeholder="Contoh: Makanan"
+                    required
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Pilih Warna
-                </label>
-                <div className="grid grid-cols-5 gap-2">
-                  {COLOR_OPTIONS.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, color })}
-                      className={`w-full h-10 rounded-lg border-2 ${
-                        formData.color === color
-                          ? 'border-gray-800 scale-110'
-                          : 'border-gray-200'
-                      }`}
-                      style={{ backgroundColor: color }}
+                <div>
+                  <label className="block text-sm font-semibold mb-2 dark:text-white">
+                    Pilih Icon
+                  </label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {EMOJI_OPTIONS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, icon: emoji })}
+                        className={`p-3 text-2xl border-2 rounded-lg hover:border-blue-500 ${
+                          formData.icon === emoji
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900'
+                            : 'border-gray-200 dark:border-gray-600'
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2">
+                    <input
+                      type="text"
+                      value={formData.icon}
+                      onChange={(e) =>
+                        setFormData({ ...formData, icon: e.target.value })
+                      }
+                      className="w-full p-2 border dark:border-gray-600 rounded-lg text-center text-2xl dark:bg-gray-700 dark:text-white"
+                      placeholder="Atau ketik emoji"
+                      maxLength={2}
                     />
-                  ))}
+                  </div>
                 </div>
-                <div className="mt-2">
-                  <input
-                    type="color"
-                    value={formData.color}
-                    onChange={(e) =>
-                      setFormData({ ...formData, color: e.target.value })
-                    }
-                    className="w-full h-10 border rounded-lg cursor-pointer"
-                  />
-                </div>
-              </div>
 
-              {/* Preview */}
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm font-semibold mb-2">Preview:</p>
-                <div
-                  className="p-4 bg-white rounded-lg border-2"
-                  style={{ borderColor: formData.color }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
-                      style={{ backgroundColor: `${formData.color}20` }}
-                    >
-                      {formData.icon}
-                    </div>
-                    <div>
-                      <p className="font-bold" style={{ color: formData.color }}>
-                        {formData.name || 'Nama Kategori'}
-                      </p>
+                <div>
+                  <label className="block text-sm font-semibold mb-2 dark:text-white">
+                    Pilih Warna
+                  </label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {COLOR_OPTIONS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, color })}
+                        className={`w-full h-10 rounded-lg border-2 ${
+                          formData.color === color
+                            ? 'border-gray-800 scale-110'
+                            : 'border-gray-200'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                  </div>
+                  <div className="mt-2">
+                    <input
+                      type="color"
+                      value={formData.color}
+                      onChange={(e) =>
+                        setFormData({ ...formData, color: e.target.value })
+                      }
+                      className="w-full h-10 border dark:border-gray-600 rounded-lg cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* Preview */}
+                <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <p className="text-sm font-semibold mb-2 dark:text-white">Preview:</p>
+                  <div
+                    className="p-4 bg-white dark:bg-gray-800 rounded-lg border-2"
+                    style={{ borderColor: formData.color }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
+                        style={{ backgroundColor: `${formData.color}20` }}
+                      >
+                        {formData.icon}
+                      </div>
+                      <div>
+                        <p className="font-bold" style={{ color: formData.color }}>
+                          {formData.name || 'Nama Kategori'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-4">
+              {/* Footer - Fixed */}
+              <div className="p-6 border-t dark:border-gray-700 flex gap-3 flex-shrink-0">
                 <button
                   type="button"
                   onClick={handleCloseForm}
-                  className="flex-1 px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-semibold"
+                  className="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-semibold"
                 >
                   Batal
                 </button>

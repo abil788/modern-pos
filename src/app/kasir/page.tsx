@@ -29,7 +29,6 @@ export default function KasirPage() {
   const [customerName, setCustomerName] = useState('');
   const [notes, setNotes] = useState('');
   
-  // Cart editing state
   const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
   const [quantityInput, setQuantityInput] = useState<string>('');
   
@@ -130,7 +129,6 @@ export default function KasirPage() {
     }
   };
 
-  // Cart quantity handlers
   const handleQuantityInputStart = (productId: string, currentQuantity: number) => {
     setEditingQuantity(productId);
     setQuantityInput(currentQuantity.toString());
@@ -347,37 +345,72 @@ export default function KasirPage() {
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {filteredProducts.map((product) => (
-                  <button
-                    key={product.id}
-                    onClick={() => handleAddToCart(product)}
-                    className="bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-lg transition-shadow border dark:border-gray-700"
-                    disabled={product.stock <= 0}
-                  >
-                    {product.image ? (
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-32 object-cover rounded-lg mb-2"
-                      />
-                    ) : (
-                      <div className="w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg mb-2 flex items-center justify-center">
-                        <span className="text-4xl">📦</span>
+                {filteredProducts.map((product) => {
+                  const isOutOfStock = product.stock <= 0;
+                  
+                  return (
+                    <button
+                      key={product.id}
+                      onClick={() => handleAddToCart(product)}
+                      disabled={isOutOfStock}
+                      className={`bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-lg transition-shadow border dark:border-gray-700 ${
+                        isOutOfStock 
+                          ? 'opacity-50 cursor-not-allowed' 
+                          : 'hover:border-blue-500 dark:hover:border-blue-500'
+                      }`}
+                    >
+                      <div className="relative">
+                        {product.image ? (
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className={`w-full h-32 object-cover rounded-lg mb-2 ${
+                              isOutOfStock ? 'grayscale' : ''
+                            }`}
+                          />
+                        ) : (
+                          <div className={`w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg mb-2 flex items-center justify-center ${
+                            isOutOfStock ? 'grayscale' : ''
+                          }`}>
+                            <span className="text-4xl">📦</span>
+                          </div>
+                        )}
+                        
+                        {/* Out of Stock Badge */}
+                        {isOutOfStock && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 rounded-lg">
+                            <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                              HABIS
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    <h3 className="font-semibold text-sm mb-1 truncate dark:text-white">{product.name}</h3>
-                    <p className="text-blue-600 dark:text-blue-400 font-bold">{formatCurrency(product.price)}</p>
-                    <p className={`text-xs mt-1 ${product.stock <= product.minStock ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'}`}>
-                      Stok: {product.stock}
-                    </p>
-                  </button>
-                ))}
+                      
+                      <h3 className="font-semibold text-sm mb-1 truncate dark:text-white">
+                        {product.name}
+                      </h3>
+                      <p className="text-blue-600 dark:text-blue-400 font-bold">
+                        {formatCurrency(product.price)}
+                      </p>
+                      <p className={`text-xs mt-1 font-semibold ${
+                        isOutOfStock 
+                          ? 'text-red-600 dark:text-red-400' 
+                          : product.stock <= product.minStock 
+                            ? 'text-orange-600 dark:text-orange-400' 
+                            : 'text-gray-500 dark:text-gray-400'
+                      }`}>
+                        Stok: {product.stock}
+                        {isOutOfStock && ' - HABIS'}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
         </div>
 
-        {/* INLINE CART PANEL */}
+        {/* CART PANEL */}
         <div className="w-96 bg-white dark:bg-gray-800 border-l dark:border-gray-700 flex flex-col">
           <div className="p-4 border-b dark:border-gray-700">
             <h2 className="text-xl font-bold flex items-center gap-2 dark:text-white">

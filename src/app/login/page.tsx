@@ -376,10 +376,6 @@ export default function LoginPage() {
             </>
           )}
         </div>
-
-        <div className="text-center mt-8 text-sm text-gray-500">
-          Modern POS System © 2025
-        </div>
       </div>
     </div>
   );
