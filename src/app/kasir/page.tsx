@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Scan, ShoppingCart } from 'lucide-react';
+import { Search, Scan, ShoppingCart, Trash2 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { Product, Category, Transaction } from '@/types';
@@ -29,7 +29,11 @@ export default function KasirPage() {
   const [customerName, setCustomerName] = useState('');
   const [notes, setNotes] = useState('');
   
-  const { items, addItem, removeItem, updateQuantity, getTotal, getSubtotal, clearCart, loadCart } = useCartStore();
+  // Cart editing state
+  const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
+  const [quantityInput, setQuantityInput] = useState<string>('');
+  
+  const { items, addItem, removeItem, updateQuantity, clearCart, loadCart, getSubtotal } = useCartStore();
   const { store, setStore } = useSettingsStore();
 
   useEffect(() => {
@@ -45,10 +49,6 @@ export default function KasirPage() {
       if (res.ok) {
         const data = await res.json();
         setStore(data);
-        console.log('[KASIR] Store settings loaded:', {
-          taxRate: data.taxRate,
-          currency: data.currency,
-        });
       }
     } catch (error) {
       console.error('Failed to load store settings:', error);
@@ -65,7 +65,6 @@ export default function KasirPage() {
       } else if (Array.isArray(data)) {
         setProducts(data);
       } else {
-        console.error('Unexpected API response format:', data);
         setProducts([]);
       }
     } catch (error) {
@@ -82,7 +81,6 @@ export default function KasirPage() {
       setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading categories:', error);
-      toast.error('Gagal memuat kategori');
       setCategories([]);
     }
   };
@@ -105,6 +103,7 @@ export default function KasirPage() {
       price: product.price,
       image: product.image,
       discount: 0,
+      maxStock: product.stock,
     });
     toast.success(`${product.name} ditambahkan`);
   };
@@ -122,14 +121,52 @@ export default function KasirPage() {
       }
       
       if (productList.length > 0) {
-        const product = productList[0];
-        handleAddToCart(product);
+        handleAddToCart(productList[0]);
       } else {
         toast.error('Produk tidak ditemukan');
       }
     } catch (error) {
-      console.error('Error scanning barcode:', error);
       toast.error('Gagal mencari produk');
+    }
+  };
+
+  // Cart quantity handlers
+  const handleQuantityInputStart = (productId: string, currentQuantity: number) => {
+    setEditingQuantity(productId);
+    setQuantityInput(currentQuantity.toString());
+  };
+
+  const handleQuantityInputChange = (value: string) => {
+    if (value === '' || /^\d+$/.test(value)) {
+      setQuantityInput(value);
+    }
+  };
+
+  const handleQuantityInputSubmit = (productId: string, maxStock: number) => {
+    const newQuantity = parseInt(quantityInput) || 0;
+    
+    if (newQuantity <= 0) {
+      toast.error('Quantity harus lebih dari 0!');
+      setEditingQuantity(null);
+      return;
+    }
+    
+    if (newQuantity > maxStock) {
+      toast.error(`Stok tidak cukup! Maksimal: ${maxStock}`);
+      setQuantityInput(maxStock.toString());
+      return;
+    }
+    
+    updateQuantity(productId, newQuantity);
+    setEditingQuantity(null);
+    toast.success('Quantity diupdate');
+  };
+
+  const handleQuantityInputBlur = (productId: string, maxStock: number) => {
+    if (quantityInput) {
+      handleQuantityInputSubmit(productId, maxStock);
+    } else {
+      setEditingQuantity(null);
     }
   };
 
@@ -146,15 +183,6 @@ export default function KasirPage() {
     const paid = parseFloat(amountPaid) || 0;
     const change = paid - total;
 
-    console.log('[CHECKOUT] Calculation:', {
-      subtotal,
-      taxRate,
-      tax,
-      total,
-      paid,
-      change,
-    });
-
     if (paymentMethod === 'CASH' && paid < total) {
       toast.error('Jumlah bayar kurang!');
       return;
@@ -163,7 +191,6 @@ export default function KasirPage() {
     try {
       setLoading(true);
 
-      // Get current session for cashier ID
       const sessionData = localStorage.getItem('cashier_session');
       let cashierId = 'demo-cashier';
       
@@ -171,7 +198,6 @@ export default function KasirPage() {
         try {
           const session = JSON.parse(sessionData);
           cashierId = session.userId || 'demo-cashier';
-          console.log('[CHECKOUT] Using cashier ID:', cashierId);
         } catch (e) {
           console.error('Failed to parse session:', e);
         }
@@ -199,8 +225,6 @@ export default function KasirPage() {
         cashierId,
       };
 
-      console.log('[CHECKOUT] Sending transaction:', transactionData);
-
       const res = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -213,8 +237,6 @@ export default function KasirPage() {
       }
 
       const transaction = await res.json();
-      
-      console.log('[CHECKOUT] Transaction created:', transaction);
       
       toast.success('Transaksi berhasil!');
       
@@ -236,6 +258,12 @@ export default function KasirPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const quickCashAmounts = [10000, 20000, 50000, 100000, 200000, 500000];
+  
+  const handleQuickCash = (amount: number) => {
+    setAmountPaid(amount.toString());
   };
 
   const subtotal = getSubtotal();
@@ -349,6 +377,7 @@ export default function KasirPage() {
           </div>
         </div>
 
+        {/* INLINE CART PANEL */}
         <div className="w-96 bg-white dark:bg-gray-800 border-l dark:border-gray-700 flex flex-col">
           <div className="p-4 border-b dark:border-gray-700">
             <h2 className="text-xl font-bold flex items-center gap-2 dark:text-white">
@@ -365,40 +394,88 @@ export default function KasirPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {items.map((item) => (
-                  <div key={item.productId} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-semibold text-sm flex-1 dark:text-white">{item.name}</h4>
-                      <button
-                        onClick={() => removeItem(item.productId)}
-                        className="text-red-600 hover:text-red-700 ml-2"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                {items.map((item) => {
+                  const maxStock = item.maxStock || 999;
+                  
+                  return (
+                    <div key={item.productId} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-semibold text-sm flex-1 dark:text-white">
+                          {item.name}
+                        </h4>
                         <button
-                          onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                          className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500"
+                          onClick={() => removeItem(item.productId)}
+                          className="text-red-600 hover:text-red-700 ml-2 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900"
                         >
-                          -
-                        </button>
-                        <span className="w-12 text-center font-semibold dark:text-white">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                          className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500"
-                        >
-                          +
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{formatCurrency(item.price)}</p>
-                        <p className="font-bold dark:text-white">{formatCurrency(item.subtotal)}</p>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center justify-center font-bold"
+                          >
+                            -
+                          </button>
+                          
+                          {editingQuantity === item.productId ? (
+                            <input
+                              type="text"
+                              value={quantityInput}
+                              onChange={(e) => handleQuantityInputChange(e.target.value)}
+                              onBlur={() => handleQuantityInputBlur(item.productId, maxStock)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleQuantityInputSubmit(item.productId, maxStock);
+                                } else if (e.key === 'Escape') {
+                                  setEditingQuantity(null);
+                                }
+                              }}
+                              className="w-16 text-center font-semibold border-2 border-blue-500 rounded px-1 py-1 dark:bg-gray-600 dark:text-white"
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              onClick={() => handleQuantityInputStart(item.productId, item.quantity)}
+                              className="w-16 text-center font-semibold dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600 rounded py-1"
+                              title="Klik untuk input manual"
+                            >
+                              {item.quantity}
+                            </button>
+                          )}
+                          
+                          <button
+                            onClick={() => {
+                              if (item.quantity >= maxStock) {
+                                toast.error(`Stok maksimal: ${maxStock}`);
+                                return;
+                              }
+                              updateQuantity(item.productId, item.quantity + 1);
+                            }}
+                            className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center justify-center font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
+                        
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {formatCurrency(item.price)}
+                          </p>
+                          <p className="font-bold dark:text-white">
+                            {formatCurrency(item.subtotal)}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Stok tersedia: {maxStock}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -499,6 +576,20 @@ export default function KasirPage() {
               {paymentMethod === 'CASH' && (
                 <div>
                   <label className="block font-semibold mb-2 dark:text-white">Jumlah Bayar</label>
+                  
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {quickCashAmounts.map((amount) => (
+                      <button
+                        key={amount}
+                        type="button"
+                        onClick={() => handleQuickCash(amount)}
+                        className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-semibold dark:text-white"
+                      >
+                        {formatCurrency(amount)}
+                      </button>
+                    ))}
+                  </div>
+                  
                   <input
                     type="number"
                     value={amountPaid}

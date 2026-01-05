@@ -24,6 +24,13 @@ export const useCartStore = create<CartState>((set, get) => ({
 
     let newItems: CartItem[];
     if (existingItem) {
+      // Check stock limit
+      const maxStock = item.maxStock || 999;
+      if (existingItem.quantity >= maxStock) {
+        // Don't add, max stock reached
+        return;
+      }
+      
       newItems = items.map(i =>
         i.productId === item.productId
           ? {
@@ -61,7 +68,16 @@ export const useCartStore = create<CartState>((set, get) => ({
       return;
     }
 
-    const newItems = get().items.map(i =>
+    const items = get().items;
+    const item = items.find(i => i.productId === productId);
+    
+    // Check max stock
+    if (item && item.maxStock && quantity > item.maxStock) {
+      // Don't update if exceeds stock
+      return;
+    }
+
+    const newItems = items.map(i =>
       i.productId === productId
         ? {
             ...i,

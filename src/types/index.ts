@@ -70,6 +70,7 @@ export interface CartItem {
   discount: number;
   subtotal: number;
   image?: string;
+  maxStock?: number; // Added for stock validation
 }
 
 export interface Transaction {
