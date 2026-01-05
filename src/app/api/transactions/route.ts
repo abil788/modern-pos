@@ -1,4 +1,3 @@
-// src/app/api/transactions/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { generateInvoiceNumber } from '@/lib/db';
 
@@ -11,7 +10,6 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     
-    // Pagination
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
@@ -39,6 +37,7 @@ export async function GET(request: NextRequest) {
               id: true,
               fullName: true,
               username: true,
+              role: true,
             },
           },
         },
@@ -92,6 +91,7 @@ export async function POST(request: NextRequest) {
       customerPhone,
       notes,
       storeId,
+      cashierId,
     } = body;
 
     console.log(`[TRANSACTIONS API] Received transaction data at ${new Date().toISOString()}`);
@@ -103,15 +103,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get or create default cashier
+    // Get cashier - prioritize provided cashierId
     const cashierStartTime = Date.now();
-    let cashier = await prisma.user.findFirst({
-      where: {
-        storeId,
-        role: 'CASHIER',
-      },
-    });
+    let cashier;
+    
+    if (cashierId) {
+      cashier = await prisma.user.findUnique({
+        where: { id: cashierId },
+        select: {
+          id: true,
+          fullName: true,
+          username: true,
+          role: true,
+        },
+      });
+    }
+    
+    // Fallback to default cashier if not provided or not found
+    if (!cashier) {
+      cashier = await prisma.user.findFirst({
+        where: {
+          storeId,
+          role: 'CASHIER',
+        },
+        select: {
+          id: true,
+          fullName: true,
+          username: true,
+          role: true,
+        },
+      });
+    }
 
+    // Create default cashier if none exists
     if (!cashier) {
       const bcrypt = require('bcryptjs');
       const hashedPassword = await bcrypt.hash('kasir123', 10);
@@ -124,16 +148,20 @@ export async function POST(request: NextRequest) {
           fullName: 'Kasir Default',
           storeId,
         },
+        select: {
+          id: true,
+          fullName: true,
+          username: true,
+          role: true,
+        },
       });
     }
-    console.log(`[TRANSACTIONS API] Cashier lookup: ${Date.now() - cashierStartTime}ms`);
+    console.log(`[TRANSACTIONS API] Cashier lookup: ${Date.now() - cashierStartTime}ms | Cashier: ${cashier.fullName}`);
 
-    // Generate invoice
     const invoiceStartTime = Date.now();
     const invoiceNumber = await generateInvoiceNumber(storeId);
     console.log(`[TRANSACTIONS API] Invoice generation: ${Date.now() - invoiceStartTime}ms`);
 
-    // Create transaction with items
     const transactionStartTime = Date.now();
     const transaction = await prisma.transaction.create({
       data: {
@@ -168,13 +196,13 @@ export async function POST(request: NextRequest) {
             id: true,
             fullName: true,
             username: true,
+            role: true,
           },
         },
       },
     });
     console.log(`[TRANSACTIONS API] Transaction creation: ${Date.now() - transactionStartTime}ms`);
 
-    // Update product stock in parallel
     const stockStartTime = Date.now();
     await Promise.all(
       items.map((item: any) =>
@@ -193,7 +221,7 @@ export async function POST(request: NextRequest) {
     console.log(`[TRANSACTIONS API] Stock update: ${Date.now() - stockStartTime}ms`);
 
     const totalTime = Date.now() - startTime;
-    console.log(`[TRANSACTIONS API] Transaction created successfully in ${totalTime}ms | ID: ${transaction.id}`);
+    console.log(`[TRANSACTIONS API] Transaction created successfully in ${totalTime}ms | ID: ${transaction.id} | Cashier: ${cashier.fullName}`);
 
     return NextResponse.json({
       ...transaction,

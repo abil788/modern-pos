@@ -24,31 +24,45 @@ export default function KasirPage() {
   const [showReceipt, setShowReceipt] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // Checkout state
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'QRIS' | 'TRANSFER'>('CASH');
   const [amountPaid, setAmountPaid] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [notes, setNotes] = useState('');
   
   const { items, addItem, removeItem, updateQuantity, getTotal, getSubtotal, clearCart, loadCart } = useCartStore();
-  const { store } = useSettingsStore();
+  const { store, setStore } = useSettingsStore();
 
   useEffect(() => {
     loadCart();
     loadProducts();
     loadCategories();
+    loadStoreSettings();
   }, []);
+
+  const loadStoreSettings = async () => {
+    try {
+      const res = await fetch('/api/settings?storeId=demo-store');
+      if (res.ok) {
+        const data = await res.json();
+        setStore(data);
+        console.log('[KASIR] Store settings loaded:', {
+          taxRate: data.taxRate,
+          currency: data.currency,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load store settings:', error);
+    }
+  };
 
   const loadProducts = async () => {
     try {
       const res = await fetch(`/api/products?storeId=${store?.id || 'demo-store'}&limit=1000`);
       const data = await res.json();
       
-      // Handle new API response format with pagination
       if (data.products && Array.isArray(data.products)) {
         setProducts(data.products);
       } else if (Array.isArray(data)) {
-        // Fallback for old API format
         setProducts(data);
       } else {
         console.error('Unexpected API response format:', data);
@@ -100,7 +114,6 @@ export default function KasirPage() {
       const res = await fetch(`/api/products?storeId=${store?.id || 'demo-store'}&barcode=${barcode}`);
       const data = await res.json();
       
-      // Handle new API response format
       let productList = [];
       if (data.products && Array.isArray(data.products)) {
         productList = data.products;
@@ -127,10 +140,20 @@ export default function KasirPage() {
     }
 
     const subtotal = getSubtotal();
-    const tax = store?.taxRate ? (subtotal * store.taxRate) / 100 : 0;
+    const taxRate = store?.taxRate || 0;
+    const tax = taxRate > 0 ? (subtotal * taxRate) / 100 : 0;
     const total = subtotal + tax;
     const paid = parseFloat(amountPaid) || 0;
     const change = paid - total;
+
+    console.log('[CHECKOUT] Calculation:', {
+      subtotal,
+      taxRate,
+      tax,
+      total,
+      paid,
+      change,
+    });
 
     if (paymentMethod === 'CASH' && paid < total) {
       toast.error('Jumlah bayar kurang!');
@@ -139,6 +162,20 @@ export default function KasirPage() {
 
     try {
       setLoading(true);
+
+      // Get current session for cashier ID
+      const sessionData = localStorage.getItem('cashier_session');
+      let cashierId = 'demo-cashier';
+      
+      if (sessionData) {
+        try {
+          const session = JSON.parse(sessionData);
+          cashierId = session.userId || 'demo-cashier';
+          console.log('[CHECKOUT] Using cashier ID:', cashierId);
+        } catch (e) {
+          console.error('Failed to parse session:', e);
+        }
+      }
       
       const transactionData = {
         items: items.map(item => ({
@@ -159,7 +196,10 @@ export default function KasirPage() {
         customerName: customerName || undefined,
         notes: notes || undefined,
         storeId: store?.id || 'demo-store',
+        cashierId,
       };
+
+      console.log('[CHECKOUT] Sending transaction:', transactionData);
 
       const res = await fetch('/api/transactions', {
         method: 'POST',
@@ -174,6 +214,8 @@ export default function KasirPage() {
 
       const transaction = await res.json();
       
+      console.log('[CHECKOUT] Transaction created:', transaction);
+      
       toast.success('Transaksi berhasil!');
       
       setCompletedTransaction(transaction);
@@ -181,13 +223,11 @@ export default function KasirPage() {
       setShowReceipt(true);
       clearCart();
       
-      // Reset checkout form
       setAmountPaid('');
       setCustomerName('');
       setNotes('');
       setPaymentMethod('CASH');
       
-      // Reload products to update stock
       loadProducts();
       
     } catch (error: any) {
@@ -199,7 +239,8 @@ export default function KasirPage() {
   };
 
   const subtotal = getSubtotal();
-  const tax = store?.taxRate ? (subtotal * store.taxRate) / 100 : 0;
+  const taxRate = store?.taxRate || 0;
+  const tax = taxRate > 0 ? (subtotal * taxRate) / 100 : 0;
   const total = subtotal + tax;
   const paid = parseFloat(amountPaid) || 0;
   const change = paid - total;
@@ -210,15 +251,17 @@ export default function KasirPage() {
       <Toaster position="top-right" />
       
       <div className="flex h-full bg-gray-50 dark:bg-gray-900">
-        {/* Product Grid */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Header */}
           <header className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-4">
             <div className="flex items-center justify-between mb-4">
               <ThemeToggle />
+              {taxRate > 0 && (
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Pajak: {taxRate}%
+                </div>
+              )}
             </div>
 
-            {/* Search & Scanner */}
             <div className="flex gap-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -239,7 +282,6 @@ export default function KasirPage() {
               </button>
             </div>
 
-            {/* Categories */}
             <div className="flex gap-2 mt-4 overflow-x-auto">
               <button
                 onClick={() => setSelectedCategory('all')}
@@ -267,7 +309,6 @@ export default function KasirPage() {
             </div>
           </header>
 
-          {/* Products Grid */}
           <div className="flex-1 overflow-y-auto p-6">
             {filteredProducts.length === 0 ? (
               <div className="flex items-center justify-center h-64">
@@ -308,9 +349,7 @@ export default function KasirPage() {
           </div>
         </div>
 
-        {/* Cart Sidebar - Keep the rest of your existing cart code here */}
         <div className="w-96 bg-white dark:bg-gray-800 border-l dark:border-gray-700 flex flex-col">
-          {/* ... rest of cart sidebar code stays the same ... */}
           <div className="p-4 border-b dark:border-gray-700">
             <h2 className="text-xl font-bold flex items-center gap-2 dark:text-white">
               <ShoppingCart className="w-6 h-6" />
@@ -372,7 +411,7 @@ export default function KasirPage() {
               </div>
               {tax > 0 && (
                 <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                  <span>Pajak ({store?.taxRate}%):</span>
+                  <span>Pajak ({taxRate}%):</span>
                   <span>{formatCurrency(tax)}</span>
                 </div>
               )}
@@ -392,14 +431,12 @@ export default function KasirPage() {
         </div>
       </div>
 
-      {/* Keep all your existing modals (Barcode Scanner, Checkout, Receipt) */}
       <BarcodeScanner
         isOpen={showScanner}
         onClose={() => setShowScanner(false)}
         onScan={handleScanBarcode}
       />
 
-      {/* Checkout Modal */}
       {showCheckout && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -411,7 +448,6 @@ export default function KasirPage() {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Order Summary */}
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                 <h3 className="font-semibold mb-3 dark:text-white">Ringkasan Pesanan</h3>
                 <div className="space-y-2 text-sm">
@@ -428,7 +464,7 @@ export default function KasirPage() {
                     </div>
                     {tax > 0 && (
                       <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                        <span>Pajak ({store?.taxRate}%):</span>
+                        <span>Pajak ({taxRate}%):</span>
                         <span>{formatCurrency(tax)}</span>
                       </div>
                     )}
@@ -440,7 +476,6 @@ export default function KasirPage() {
                 </div>
               </div>
 
-              {/* Payment Method */}
               <div>
                 <label className="block font-semibold mb-2 dark:text-white">Metode Pembayaran</label>
                 <div className="grid grid-cols-2 gap-3">
@@ -461,7 +496,6 @@ export default function KasirPage() {
                 </div>
               </div>
 
-              {/* Amount Paid - Untuk CASH */}
               {paymentMethod === 'CASH' && (
                 <div>
                   <label className="block font-semibold mb-2 dark:text-white">Jumlah Bayar</label>
@@ -484,7 +518,6 @@ export default function KasirPage() {
                 </div>
               )}
 
-              {/* Auto-fill untuk metode non-CASH */}
               {paymentMethod !== 'CASH' && (
                 <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
                   <p className="text-sm text-blue-800 dark:text-blue-200">
@@ -493,7 +526,6 @@ export default function KasirPage() {
                 </div>
               )}
 
-              {/* Customer Info */}
               <div>
                 <label className="block text-sm font-semibold mb-1 dark:text-white">Nama Pelanggan (Opsional)</label>
                 <input
@@ -505,7 +537,6 @@ export default function KasirPage() {
                 />
               </div>
 
-              {/* Notes */}
               <div>
                 <label className="block text-sm font-semibold mb-1 dark:text-white">Catatan</label>
                 <textarea
@@ -539,7 +570,6 @@ export default function KasirPage() {
         </div>
       )}
 
-      {/* Receipt Modal - Keep existing code */}
       {completedTransaction && (
         <Receipt
           transaction={completedTransaction}

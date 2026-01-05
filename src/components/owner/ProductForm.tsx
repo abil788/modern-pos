@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Upload, Image as ImageIcon } from 'lucide-react';
 import { Product, Category } from '@/types';
 import { generateSKU } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -14,6 +14,7 @@ interface ProductFormProps {
 }
 
 export function ProductForm({ product, isOpen, onClose, onSuccess }: ProductFormProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState({
     name: '',
@@ -28,6 +29,8 @@ export function ProductForm({ product, isOpen, onClose, onSuccess }: ProductForm
     image: '',
   });
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
@@ -45,8 +48,8 @@ export function ProductForm({ product, isOpen, onClose, onSuccess }: ProductForm
           categoryId: product.categoryId || '',
           image: product.image || '',
         });
+        setImagePreview(product.image || '');
       } else {
-        // Reset form for new product
         setFormData({
           name: '',
           sku: '',
@@ -59,6 +62,7 @@ export function ProductForm({ product, isOpen, onClose, onSuccess }: ProductForm
           categoryId: '',
           image: '',
         });
+        setImagePreview('');
       }
     }
   }, [isOpen, product]);
@@ -88,6 +92,70 @@ export function ProductForm({ product, isOpen, onClose, onSuccess }: ProductForm
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Format file tidak valid. Gunakan JPG, PNG, WebP, atau GIF.');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error('Ukuran file terlalu besar. Maksimal 5MB.');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload to server
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const data = await res.json();
+      
+      setFormData(prev => ({ ...prev, image: data.url }));
+      toast.success('Gambar berhasil diupload!');
+      
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Gagal upload gambar');
+      setImagePreview('');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setFormData(prev => ({ ...prev, image: '' }));
+    setImagePreview('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -110,8 +178,6 @@ export function ProductForm({ product, isOpen, onClose, onSuccess }: ProductForm
         minStock: parseInt(formData.minStock || '5'),
         storeId: 'demo-store',
       };
-
-      console.log('Submitting product:', body);
 
       const res = await fetch(endpoint, {
         method,
@@ -151,6 +217,77 @@ export function ProductForm({ product, isOpen, onClose, onSuccess }: ProductForm
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Image Upload Section */}
+          <div>
+            <label className="block text-sm font-semibold mb-2 dark:text-white">
+              Gambar Produk
+            </label>
+            
+            <div className="flex items-start gap-4">
+              {/* Preview */}
+              <div className="flex-shrink-0">
+                {imagePreview ? (
+                  <div className="relative group">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-32 h-32 object-cover rounded-lg border-2 border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-32 h-32 bg-gray-100 dark:bg-gray-700 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                    <ImageIcon className="w-12 h-12 text-gray-400" />
+                  </div>
+                )}
+              </div>
+
+              {/* Upload Button */}
+              <div className="flex-1">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full px-4 py-3 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 border-2 border-blue-200 dark:border-blue-700 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-800 flex items-center justify-center gap-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Upload className="w-5 h-5" />
+                  {uploading ? 'Mengupload...' : 'Upload Gambar'}
+                </button>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Format: JPG, PNG, WebP, GIF • Max: 5MB
+                </p>
+                
+                {/* URL Input Alternative */}
+                <div className="mt-3">
+                  <input
+                    type="text"
+                    name="image"
+                    value={formData.image}
+                    onChange={(e) => {
+                      handleChange(e);
+                      setImagePreview(e.target.value);
+                    }}
+                    placeholder="Atau masukkan URL gambar"
+                    className="w-full p-2 text-sm border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-semibold mb-1 dark:text-white">
               Nama Produk <span className="text-red-600">*</span>
@@ -291,18 +428,6 @@ export function ProductForm({ product, isOpen, onClose, onSuccess }: ProductForm
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold mb-1 dark:text-white">URL Gambar</label>
-            <input
-              type="text"
-              name="image"
-              value={formData.image}
-              onChange={handleChange}
-              className="w-full p-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-              placeholder="https://example.com/image.jpg (opsional)"
-            />
-          </div>
-
           <div className="flex gap-3 pt-4 sticky bottom-0 bg-white dark:bg-gray-800 border-t dark:border-gray-700 -mx-6 -mb-6 px-6 py-4">
             <button
               type="button"
@@ -313,7 +438,7 @@ export function ProductForm({ product, isOpen, onClose, onSuccess }: ProductForm
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || uploading}
               className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {loading ? 'Menyimpan...' : 'Simpan Produk'}

@@ -15,12 +15,6 @@ interface ReceiptProps {
   onClose: () => void;
 }
 
-interface Cashier {
-  id: string;
-  fullName: string;
-  email: string;
-}
-
 export function Receipt({
   transaction,
   storeName,
@@ -31,30 +25,35 @@ export function Receipt({
   onClose,
 }: ReceiptProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
-  const [cashierName, setCashierName] = useState<string>('');
+  const [cashierName, setCashierName] = useState<string>('Loading...');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (transaction.cashierId) {
+    if (isOpen && transaction.cashierId) {
       loadCashierName(transaction.cashierId);
     }
-  }, [transaction.cashierId]);
+  }, [isOpen, transaction.cashierId]);
 
   const loadCashierName = async (cashierId: string) => {
     try {
-      const res = await fetch(`/api/cashiers?id=${cashierId}`);
+      setLoading(true);
+      // Fallback: fetch from API
+      const res = await fetch(`/api/cashiers?id=${cashierId}&storeId=demo-store`);
       if (res.ok) {
         const data = await res.json();
-        if (data.length > 0) {
-          setCashierName(data[0].fullName);
+        if (data && data.length > 0) {
+          setCashierName(data[0].fullName || data[0].username);
         } else {
-          setCashierName(cashierId);
+          setCashierName('Kasir');
         }
       } else {
-        setCashierName(cashierId);
+        setCashierName('Kasir');
       }
     } catch (error) {
       console.error('Failed to load cashier:', error);
-      setCashierName(cashierId);
+      setCashierName('Kasir');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -97,10 +96,8 @@ export function Receipt({
 
   return (
     <>
-      {/* Modal */}
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
-          {/* Header */}
           <div className="p-4 border-b flex items-center justify-between print:hidden">
             <h2 className="text-xl font-bold">Struk Pembayaran</h2>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded">
@@ -108,7 +105,6 @@ export function Receipt({
             </button>
           </div>
 
-          {/* Receipt Content */}
           <div ref={receiptRef} className="p-6 receipt-content">
             <div className="text-center mb-4">
               <h1 className="text-2xl font-bold">{storeName}</h1>
@@ -127,10 +123,6 @@ export function Receipt({
                 <span>Tanggal:</span>
                 <span>{formatDateTime(transaction.createdAt)}</span>
               </div>
-              <div className="flex justify-between">
-                <span>Kasir:</span>
-                <span>{cashierName || transaction.cashierId || '-'}</span>
-              </div>
               {transaction.customerName && (
                 <div className="flex justify-between">
                   <span>Pelanggan:</span>
@@ -141,7 +133,6 @@ export function Receipt({
 
             <div className="border-t-2 border-dashed border-gray-300 my-4"></div>
 
-            {/* Items */}
             <div className="mb-4">
               <table className="w-full text-sm">
                 <thead>
@@ -176,7 +167,6 @@ export function Receipt({
 
             <div className="border-t-2 border-dashed border-gray-300 my-4"></div>
 
-            {/* Totals */}
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
@@ -222,7 +212,6 @@ export function Receipt({
 
             <div className="border-t-2 border-dashed border-gray-300 my-4"></div>
 
-            {/* Footer */}
             <div className="text-center text-sm">
               {receiptFooter ? (
                 <p className="whitespace-pre-line">{receiptFooter}</p>
@@ -234,7 +223,6 @@ export function Receipt({
               )}
             </div>
 
-            {/* QR Code Placeholder */}
             <div className="mt-4 flex justify-center">
               <div className="w-32 h-32 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
                 QR Code
@@ -244,7 +232,6 @@ export function Receipt({
             </div>
           </div>
 
-          {/* Actions */}
           <div className="p-4 border-t flex gap-3 print:hidden">
             <button
               onClick={handlePrint}
@@ -264,7 +251,6 @@ export function Receipt({
         </div>
       </div>
 
-      {/* Print Styles */}
       <style jsx global>{`
         @media print {
           body * {

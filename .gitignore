@@ -43,3 +43,9 @@ next-env.d.ts
 *.swp
 *.swo
 *~
+
+# Ignore all uploaded images
+/public/uploads/
+
+# Optional: ignore all public upload variants
+/public/uploads/**
