@@ -316,8 +316,6 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-5xl w-full">
         <div className="text-center mb-12">
-          <div className="text-5xl mb-4">🏪</div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Modern POS</h1>
           <p className="text-gray-600">Pilih profil untuk melanjutkan</p>
         </div>
 
