@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Store, Save, Lock, Eye, EyeOff, Shield } from 'lucide-react';
+import { Store, Save, Lock, Eye, EyeOff, Shield, Upload, RefreshCw, Download } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import toast from 'react-hot-toast';
+import { backupAllData } from '@/lib/storage';
 
 export default function SettingsPage() {
   const { store, setStore } = useSettingsStore();
@@ -150,6 +151,23 @@ export default function SettingsPage() {
       toast.error(error.message || 'Gagal mengubah password');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBackup = () => {
+    try {
+      const backup = backupAllData();
+      const dataStr = JSON.stringify(backup, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `backup-${new Date().toISOString()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success('Backup berhasil didownload!');
+    } catch (error) {
+      toast.error('Gagal membuat backup');
     }
   };
 
@@ -377,6 +395,29 @@ export default function SettingsPage() {
                 rows={3}
                 placeholder="Terima kasih atas kunjungan Anda!"
               />
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold mb-6 dark:text-white">Backup & Restore</h2>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div>
+                <p className="font-semibold dark:text-white">Backup Data</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Export data toko (cart, settings, dll)
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleBackup}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Backup
+              </button>
             </div>
           </div>
         </div>
