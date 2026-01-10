@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, FileText, Calendar, TrendingUp, DollarSign, ShoppingBag, Filter } from 'lucide-react';
+import { Download, FileText, Calendar, TrendingUp, DollarSign, ShoppingBag, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Transaction } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
@@ -9,6 +9,7 @@ import { exportTransactionsPDF, exportTransactionsExcel, downloadPDF, downloadEx
 import toast from 'react-hot-toast';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+const ITEMS_PER_PAGE = 5;
 
 export default function ReportsPage() {
   const [reportData, setReportData] = useState<any>(null);
@@ -16,6 +17,10 @@ export default function ReportsPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [filterType, setFilterType] = useState<'today' | 'week' | 'month' | 'custom'>('today');
+  
+  // Pagination state for transactions table
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     setDateByFilter(filterType);
@@ -66,14 +71,22 @@ export default function ReportsPage() {
       
       // Load transactions for export
       const transRes = await fetch(
-        `/api/transactions?storeId=demo-store&startDate=${startDate}&endDate=${endDate}`
+        `/api/transactions?storeId=demo-store&startDate=${startDate}&endDate=${endDate}&limit=1000`
       );
-      const transactions = await transRes.json();
+      const transData = await transRes.json();
+      
+      // Handle new API response format
+      const allTransactions = transData.transactions || transData;
       
       setReportData({
         ...reportData,
-        fullTransactions: transactions,
+        fullTransactions: allTransactions,
       });
+      
+      // Calculate total pages for transactions table
+      const totalCount = reportData.transactions?.length || 0;
+      setTotalPages(Math.ceil(totalCount / ITEMS_PER_PAGE));
+      setCurrentPage(1); // Reset to first page
     } catch (error) {
       toast.error('Gagal memuat laporan');
     } finally {
@@ -109,6 +122,14 @@ export default function ReportsPage() {
     }
   };
 
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      // Scroll to table
+      document.getElementById('transactions-table')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -121,6 +142,12 @@ export default function ReportsPage() {
   const byPaymentMethod = reportData?.byPaymentMethod || {};
   const topProducts = reportData?.topProducts || [];
   const chartData = reportData?.chartData || [];
+  const allTransactions = reportData?.transactions || [];
+
+  // Paginate transactions
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedTransactions = allTransactions.slice(startIndex, endIndex);
 
   // Prepare payment method chart data
   const paymentChartData = Object.entries(byPaymentMethod).map(([method, data]: [string, any]) => ({
@@ -328,69 +355,131 @@ export default function ReportsPage() {
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+      <div id="transactions-table" className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         <div className="p-6 border-b dark:border-gray-700">
-          <h3 className="text-lg font-semibold dark:text-white">Detail Transaksi</h3>
+          <h3 className="text-lg font-semibold dark:text-white">
+            Detail Transaksi • Total: {allTransactions.length} transaksi
+          </h3>
         </div>
         
-        {!reportData?.transactions?.length ? (
+        {!allTransactions?.length ? (
           <div className="p-8 text-center text-gray-500 dark:text-gray-400">
             <FileText className="w-12 h-12 mx-auto mb-2 text-gray-300" />
             <p>Tidak ada transaksi pada periode ini</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Invoice
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Tanggal
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Pelanggan
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Metode
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Items
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
-                    Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {reportData.transactions.map((transaction: any) => (
-                  <tr key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 text-sm font-medium dark:text-white">
-                      {transaction.invoiceNumber}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {formatDateTime(transaction.createdAt)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {transaction.customerName || '-'}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-xs">
-                        {transaction.paymentMethod}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {transaction.itemCount} items
-                    </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-right dark:text-white">
-                      {formatCurrency(transaction.total)}
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Invoice
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Tanggal
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Pelanggan
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Metode
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Items
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">
+                      Total
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {paginatedTransactions.map((transaction: any) => (
+                    <tr key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-6 py-4 text-sm font-medium dark:text-white">
+                        {transaction.invoiceNumber}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                        {formatDateTime(transaction.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                        {transaction.customerName || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                          {transaction.paymentMethod}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                        {transaction.itemCount} items
+                      </td>
+                      <td className="px-6 py-4 text-sm font-semibold text-right dark:text-white">
+                        {formatCurrency(transaction.total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="bg-gray-50 dark:bg-gray-700 px-6 py-4 border-t dark:border-gray-600">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Halaman {currentPage} dari {totalPages} • Menampilkan {startIndex + 1}-{Math.min(endIndex, allTransactions.length)} dari {allTransactions.length} transaksi
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="px-3 py-2 border dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed dark:text-white"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    
+                    {/* Page numbers */}
+                    <div className="flex gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`px-3 py-2 border dark:border-gray-600 rounded-lg ${
+                              currentPage === pageNum
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-white'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-2 border dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed dark:text-white"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

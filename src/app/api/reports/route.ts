@@ -8,6 +8,11 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') || 'today';
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    
+    // 🆕 PAGINATION PARAMS
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = (page - 1) * limit;
 
     if (!storeId) {
       return NextResponse.json({ error: 'Store ID required' }, { status: 400 });
@@ -42,17 +47,25 @@ export async function GET(request: NextRequest) {
         dateTo = new Date();
     }
 
-    const transactions = await prisma.transaction.findMany({
-      where: {
-        storeId,
-        createdAt: { gte: dateFrom, lte: dateTo },
-      },
-      include: {
-        items: { include: { product: true } },
-        cashier: { select: { id: true, fullName: true, username: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const where = {
+      storeId,
+      createdAt: { gte: dateFrom, lte: dateTo },
+    };
+
+    // 🆕 PARALLEL QUERIES dengan pagination
+    const [transactions, totalCount] = await Promise.all([
+      prisma.transaction.findMany({
+        where,
+        include: {
+          items: { include: { product: true } },
+          cashier: { select: { id: true, fullName: true, username: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.transaction.count({ where }),
+    ]);
 
     const totalRevenue = transactions.reduce((sum, t) => sum + t.total, 0);
     const totalTransactions = transactions.length;
@@ -135,6 +148,14 @@ export async function GET(request: NextRequest) {
         cashier: t.cashier,
         itemCount: t.items.length,
       })),
+      // 🆕 PAGINATION INFO
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        hasMore: offset + transactions.length < totalCount,
+      },
     });
   } catch (error) {
     console.error('Error generating report:', error);

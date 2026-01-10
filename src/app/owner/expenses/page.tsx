@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, DollarSign, Calendar, TrendingDown } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, DollarSign, Calendar, TrendingDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Expense } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -23,6 +23,8 @@ const EXPENSE_CATEGORIES = [
   'Lain-lain',
 ];
 
+const ITEMS_PER_PAGE = 5;
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +32,12 @@ export default function ExpensesPage() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [filterCategory, setFilterCategory] = useState('');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   
   const [formData, setFormData] = useState({
     category: '',
@@ -40,16 +48,45 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     loadExpenses();
-  }, []);
+  }, [currentPage, searchQuery, filterMonth, filterCategory]);
 
   const loadExpenses = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/expenses?storeId=demo-store');
+      const params = new URLSearchParams({
+        storeId: 'demo-store',
+        page: currentPage.toString(),
+        limit: ITEMS_PER_PAGE.toString(),
+      });
+
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+
+      if (filterMonth) {
+        params.append('month', filterMonth);
+      }
+
+      if (filterCategory) {
+        params.append('category', filterCategory);
+      }
+
+      const res = await fetch(`/api/expenses?${params}`);
       const data = await res.json();
-      setExpenses(data);
+      
+      if (data.expenses && Array.isArray(data.expenses)) {
+        setExpenses(data.expenses);
+        setTotalPages(data.pagination?.totalPages || 1);
+        setTotalCount(data.pagination?.totalCount || 0);
+      } else if (Array.isArray(data)) {
+        // Fallback for old API format
+        setExpenses(data);
+      } else {
+        setExpenses([]);
+      }
     } catch (error) {
       toast.error('Gagal memuat data pengeluaran');
+      setExpenses([]);
     } finally {
       setLoading(false);
     }
@@ -132,21 +169,28 @@ export default function ExpensesPage() {
     });
   };
 
-  const filteredExpenses = expenses.filter((expense) => {
-    const matchSearch =
-      expense.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      expense.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const expenseMonth = new Date(expense.date).toISOString().slice(0, 7);
-    const matchMonth = !filterMonth || expenseMonth === filterMonth;
-    
-    return matchSearch && matchMonth;
-  });
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
 
-  const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const handleFilterChange = (month: string, category: string) => {
+    setFilterMonth(month);
+    setFilterCategory(category);
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   // Group by category
-  const byCategory = filteredExpenses.reduce((acc, expense) => {
+  const byCategory = expenses.reduce((acc, expense) => {
     if (!acc[expense.category]) {
       acc[expense.category] = 0;
     }
@@ -160,7 +204,9 @@ export default function ExpensesPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Manajemen Pengeluaran</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Kelola pengeluaran operasional toko</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
+            Kelola pengeluaran operasional toko • Total: {totalCount} pengeluaran
+          </p>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -179,7 +225,7 @@ export default function ExpensesPage() {
               <p className="text-red-100 mb-1">Total Pengeluaran</p>
               <p className="text-3xl font-bold">{formatCurrency(totalExpenses)}</p>
               <p className="text-red-100 text-sm mt-2">
-                {filteredExpenses.length} transaksi
+                {expenses.length} transaksi (halaman ini)
               </p>
             </div>
             <div className="p-4 bg-white bg-opacity-20 rounded-lg">
@@ -195,7 +241,7 @@ export default function ExpensesPage() {
           </div>
           <p className="text-2xl font-bold dark:text-white">
             {formatCurrency(
-              filteredExpenses.length > 0
+              expenses.length > 0
                 ? totalExpenses / 30
                 : 0
             )}
@@ -215,7 +261,7 @@ export default function ExpensesPage() {
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
@@ -223,7 +269,7 @@ export default function ExpensesPage() {
               placeholder="Cari pengeluaran..."
               className="w-full pl-10 pr-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
 
@@ -231,9 +277,24 @@ export default function ExpensesPage() {
             <input
               type="month"
               value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
+              onChange={(e) => handleFilterChange(e.target.value, filterCategory)}
               className="w-full p-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
             />
+          </div>
+
+          <div>
+            <select
+              value={filterCategory}
+              onChange={(e) => handleFilterChange(filterMonth, e.target.value)}
+              className="w-full p-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">Semua Kategori</option>
+              {EXPENSE_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
@@ -270,7 +331,7 @@ export default function ExpensesPage() {
                     </div>
                   </td>
                 </tr>
-              ) : filteredExpenses.length === 0 ? (
+              ) : expenses.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     <DollarSign className="w-12 h-12 mx-auto mb-2 text-gray-300" />
@@ -278,7 +339,7 @@ export default function ExpensesPage() {
                   </td>
                 </tr>
               ) : (
-                filteredExpenses.map((expense) => (
+                expenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                       <div className="flex items-center gap-2">
@@ -321,6 +382,64 @@ export default function ExpensesPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="bg-gray-50 dark:bg-gray-700 px-6 py-4 border-t dark:border-gray-600">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Halaman {currentPage} dari {totalPages} • Total {totalCount} pengeluaran
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 border dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed dark:text-white"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                
+                {/* Page numbers */}
+                <div className="flex gap-1">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        className={`px-3 py-2 border dark:border-gray-600 rounded-lg ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-white'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 border dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed dark:text-white"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Form Modal */}
