@@ -43,13 +43,34 @@ export default function OwnerLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
+  
+  // ✅ FIX: Auto-collapse on desktop (starts collapsed by default)
+  const [collapsed, setCollapsed] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
+
+  // ✅ FIX: Handle responsive collapse behavior
+  useEffect(() => {
+    const handleResize = () => {
+      // Auto-collapse on desktop (>= 1024px), expand on mobile
+      if (window.innerWidth >= 1024) {
+        setCollapsed(true);
+      } else {
+        setCollapsed(false);
+      }
+    };
+
+    // Set initial state
+    handleResize();
+
+    // Listen to window resize
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     checkAuth();
@@ -119,7 +140,6 @@ export default function OwnerLayout({
     if (!confirm('Yakin ingin logout dari mode owner?')) return;
 
     try {
-      // Log logout activity
       await fetch('/api/auth/logout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -220,7 +240,7 @@ export default function OwnerLayout({
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar */}
+      {/* Sidebar - ✅ Starts collapsed by default on desktop */}
       <aside
         className={`bg-gray-900 text-white transition-all duration-300 ${
           collapsed ? 'w-20' : 'w-64'
@@ -231,7 +251,8 @@ export default function OwnerLayout({
           {!collapsed && <h2 className="text-xl font-bold">Owner Panel</h2>}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="p-2 rounded-lg hover:bg-gray-800"
+            className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? (
               <ChevronRight className="w-5 h-5" />
@@ -263,7 +284,7 @@ export default function OwnerLayout({
           })}
         </nav>
 
-        {/* Footer - Only Logout Button */}
+        {/* Footer - Logout Button */}
         <div className="p-4 border-t border-gray-800">
           <button
             onClick={handleLogout}

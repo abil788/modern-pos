@@ -133,6 +133,14 @@ export default function HistoryPage() {
   const totalRevenue = transactions.reduce((sum, t) => sum + t.total, 0);
   const avgTransaction = transactions.length > 0 ? totalRevenue / transactions.length : 0;
 
+  // Filter transactions based on search query
+  const filteredTransactions = searchQuery
+    ? transactions.filter((t) =>
+        t.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.customerName?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : transactions;
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -235,7 +243,7 @@ export default function HistoryPage() {
                     </div>
                   </td>
                 </tr>
-              ) : transactions.length === 0 ? (
+              ) : filteredTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     <Receipt className="w-12 h-12 mx-auto mb-2 text-gray-300" />
@@ -243,7 +251,7 @@ export default function HistoryPage() {
                   </td>
                 </tr>
               ) : (
-                transactions.map((transaction) => (
+                filteredTransactions.map((transaction) => (
                   <tr key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 text-sm font-medium text-blue-600 dark:text-blue-400">
                       {transaction.invoiceNumber}
@@ -260,7 +268,19 @@ export default function HistoryPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {cashiers[transaction.cashierId]?.fullName || transaction.cashierId || '-'}
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold text-xs">
+                          {cashiers[transaction.cashierId]?.fullName?.charAt(0).toUpperCase() || 'K'}
+                        </div>
+                        <div>
+                          <p className="font-medium dark:text-white">
+                            {cashiers[transaction.cashierId]?.fullName || 'Kasir'}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {cashiers[transaction.cashierId]?.email || ''}
+                          </p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-xs font-semibold">
@@ -273,7 +293,7 @@ export default function HistoryPage() {
                     <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => setSelectedTransaction(transaction)}
-                        className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900 rounded inline-flex items-center gap-1"
+                        className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded inline-flex items-center gap-1"
                       >
                         <Eye className="w-4 h-4" />
                         <span className="text-xs">Detail</span>
@@ -344,7 +364,7 @@ export default function HistoryPage() {
           </div>
         )}
       </div>
-
+      
       {/* Detail Modal */}
       {selectedTransaction && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -375,8 +395,10 @@ export default function HistoryPage() {
                 <div>
                   <p className="text-gray-500 dark:text-gray-400">Kasir</p>
                   <p className="font-semibold dark:text-white">
-                    {cashiers[selectedTransaction.cashierId]?.fullName || 
-                     selectedTransaction.cashierId || '-'}
+                    {cashiers[selectedTransaction.cashierId]?.fullName || 'Kasir'}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {cashiers[selectedTransaction.cashierId]?.email || ''}
                   </p>
                 </div>
                 <div>

@@ -91,10 +91,11 @@ export async function POST(request: NextRequest) {
       customerPhone,
       notes,
       storeId,
-      cashierId,
+      cashierId, // ✅ CRITICAL: This must be sent from frontend
     } = body;
 
     console.log(`[TRANSACTIONS API] Received transaction data at ${new Date().toISOString()}`);
+    console.log(`[TRANSACTIONS API] Received cashierId: ${cashierId}`); // ✅ Log untuk debugging
 
     if (!items || items.length === 0 || !storeId) {
       return NextResponse.json(
@@ -103,60 +104,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get cashier - prioritize provided cashierId
-    const cashierStartTime = Date.now();
-    let cashier;
-    
-    if (cashierId) {
-      cashier = await prisma.user.findUnique({
-        where: { id: cashierId },
-        select: {
-          id: true,
-          fullName: true,
-          username: true,
-          role: true,
-        },
-      });
-    }
-    
-    // Fallback to default cashier if not provided or not found
-    if (!cashier) {
-      cashier = await prisma.user.findFirst({
-        where: {
-          storeId,
-          role: 'CASHIER',
-        },
-        select: {
-          id: true,
-          fullName: true,
-          username: true,
-          role: true,
-        },
-      });
+    // ✅ CRITICAL FIX: cashierId WAJIB dikirim dari frontend
+    if (!cashierId) {
+      return NextResponse.json(
+        { error: 'Cashier ID is required. Please login again.' },
+        { status: 400 }
+      );
     }
 
-    // Create default cashier if none exists
+    // Verify cashier exists and belongs to the store
+    const cashierStartTime = Date.now();
+    const cashier = await prisma.user.findFirst({
+      where: { 
+        id: cashierId,
+        storeId: storeId,
+      },
+      select: {
+        id: true,
+        fullName: true,
+        username: true,
+        role: true,
+      },
+    });
+
     if (!cashier) {
-      const bcrypt = require('bcryptjs');
-      const hashedPassword = await bcrypt.hash('kasir123', 10);
-      
-      cashier = await prisma.user.create({
-        data: {
-          username: 'kasir',
-          password: hashedPassword,
-          role: 'CASHIER',
-          fullName: 'Kasir Default',
-          storeId,
-        },
-        select: {
-          id: true,
-          fullName: true,
-          username: true,
-          role: true,
-        },
-      });
+      return NextResponse.json(
+        { error: 'Invalid cashier. Please login again.' },
+        { status: 403 }
+      );
     }
-    console.log(`[TRANSACTIONS API] Cashier lookup: ${Date.now() - cashierStartTime}ms | Cashier: ${cashier.fullName}`);
+
+    console.log(`[TRANSACTIONS API] Cashier verified: ${Date.now() - cashierStartTime}ms | Cashier: ${cashier.fullName} (${cashier.id})`);
 
     const invoiceStartTime = Date.now();
     const invoiceNumber = await generateInvoiceNumber(storeId);
@@ -176,7 +154,7 @@ export async function POST(request: NextRequest) {
         customerName: customerName || null,
         customerPhone: customerPhone || null,
         notes: notes || null,
-        cashierId: cashier.id,
+        cashierId: cashier.id, // ✅ Use verified cashier ID
         storeId,
         items: {
           create: items.map((item: any) => ({
@@ -221,7 +199,7 @@ export async function POST(request: NextRequest) {
     console.log(`[TRANSACTIONS API] Stock update: ${Date.now() - stockStartTime}ms`);
 
     const totalTime = Date.now() - startTime;
-    console.log(`[TRANSACTIONS API] Transaction created successfully in ${totalTime}ms | ID: ${transaction.id} | Cashier: ${cashier.fullName}`);
+    console.log(`[TRANSACTIONS API] Transaction created successfully in ${totalTime}ms | ID: ${transaction.id} | Cashier: ${cashier.fullName} (${cashier.id})`);
 
     return NextResponse.json({
       ...transaction,

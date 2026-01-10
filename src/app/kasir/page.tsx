@@ -1,64 +1,134 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Search, Scan, ShoppingCart, Trash2 } from 'lucide-react';
-import { useCartStore } from '@/store/cartStore';
-import { useSettingsStore } from '@/store/settingsStore';
-import { Product, Category, Transaction } from '@/types';
-import { formatCurrency } from '@/lib/utils';
-import { BarcodeScanner } from '@/components/kasir/BarcodeScanner';
-import { Receipt } from '@/components/shared/Receipt';
-import { NotificationBanner } from '@/components/shared/NotificationBanner';
-import { ThemeToggle } from '@/components/shared/ThemeToggle';
-import toast, { Toaster } from 'react-hot-toast';
-import { Package } from 'lucide-react'; 
+import { useState, useEffect } from "react";
+import { Search, Scan, ShoppingCart, Trash2, User, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCartStore } from "@/store/cartStore";
+import { useSettingsStore } from "@/store/settingsStore";
+import { Product, Category, Transaction } from "@/types";
+import { formatCurrency } from "@/lib/utils";
+import { BarcodeScanner } from "@/components/kasir/BarcodeScanner";
+import { Receipt } from "@/components/shared/Receipt";
+import { NotificationBanner } from "@/components/shared/NotificationBanner";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import toast, { Toaster } from "react-hot-toast";
+import { Package } from "lucide-react";
 
 export default function KasirPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showScanner, setShowScanner] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [completedTransaction, setCompletedTransaction] = useState<Transaction | null>(null);
+  const [completedTransaction, setCompletedTransaction] =
+    useState<Transaction | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [loading, setLoading] = useState(false);
-  
-  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD' | 'QRIS' | 'TRANSFER'>('CASH');
-  const [amountPaid, setAmountPaid] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [notes, setNotes] = useState('');
-  
+
+  const [paymentMethod, setPaymentMethod] = useState<
+    "CASH" | "CARD" | "QRIS" | "TRANSFER"
+  >("CASH");
+  const [amountPaid, setAmountPaid] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const [currentCashier, setCurrentCashier] = useState<{
+    id: string;
+    fullName: string;
+    username: string;
+    role: string;
+  } | null>(null);
+
   const [editingQuantity, setEditingQuantity] = useState<string | null>(null);
-  const [quantityInput, setQuantityInput] = useState<string>('');
-  
-  const { items, addItem, removeItem, updateQuantity, clearCart, loadCart, getSubtotal } = useCartStore();
+  const [quantityInput, setQuantityInput] = useState<string>("");
+
+  const {
+    items,
+    addItem,
+    removeItem,
+    updateQuantity,
+    clearCart,
+    loadCart,
+    getSubtotal,
+  } = useCartStore();
   const { store, setStore } = useSettingsStore();
 
   useEffect(() => {
+    verifyAndLoadSession();
     loadCart();
     loadProducts();
     loadCategories();
     loadStoreSettings();
   }, []);
 
+  const verifyAndLoadSession = () => {
+    const sessionData = localStorage.getItem("cashier_session");
+
+    if (!sessionData) {
+      toast.error("Session tidak ditemukan. Silakan login kembali.");
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const session = JSON.parse(sessionData);
+
+      if (!session.userId || !session.fullName) {
+        throw new Error("Invalid session data");
+      }
+
+      setCurrentCashier({
+        id: session.userId,
+        fullName: session.fullName,
+        username: session.username || session.fullName,
+        role: session.role || "CASHIER",
+      });
+
+      console.log("✅ Cashier logged in:", {
+        id: session.userId,
+        name: session.fullName,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.error("Failed to parse session:", e);
+      toast.error("Session tidak valid. Silakan login kembali.");
+      router.push("/login");
+    }
+  };
+
+  const handleLogout = () => {
+    if (items.length > 0) {
+      if (!confirm("Keranjang masih ada item. Yakin ingin logout?")) {
+        return;
+      }
+    }
+
+    localStorage.removeItem("cashier_session");
+    clearCart();
+    router.push("/login");
+  };
+
   const loadStoreSettings = async () => {
     try {
-      const res = await fetch('/api/settings?storeId=demo-store');
+      const res = await fetch("/api/settings?storeId=demo-store");
       if (res.ok) {
         const data = await res.json();
         setStore(data);
       }
     } catch (error) {
-      console.error('Failed to load store settings:', error);
+      console.error("Failed to load store settings:", error);
     }
   };
 
   const loadProducts = async () => {
     try {
-      const res = await fetch(`/api/products?storeId=${store?.id || 'demo-store'}&limit=1000`);
+      const res = await fetch(
+        `/api/products?storeId=${store?.id || "demo-store"}&limit=1000`
+      );
       const data = await res.json();
-      
+
       if (data.products && Array.isArray(data.products)) {
         setProducts(data.products);
       } else if (Array.isArray(data)) {
@@ -67,33 +137,37 @@ export default function KasirPage() {
         setProducts([]);
       }
     } catch (error) {
-      console.error('Error loading products:', error);
-      toast.error('Gagal memuat produk');
+      console.error("Error loading products:", error);
+      toast.error("Gagal memuat produk");
       setProducts([]);
     }
   };
 
   const loadCategories = async () => {
     try {
-      const res = await fetch(`/api/categories?storeId=${store?.id || 'demo-store'}`);
+      const res = await fetch(
+        `/api/categories?storeId=${store?.id || "demo-store"}`
+      );
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error('Error loading categories:', error);
+      console.error("Error loading categories:", error);
       setCategories([]);
     }
   };
 
   const filteredProducts = products.filter((product) => {
-    const matchCategory = selectedCategory === 'all' || product.categoryId === selectedCategory;
-    const matchSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchCategory =
+      selectedCategory === "all" || product.categoryId === selectedCategory;
+    const matchSearch =
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchCategory && matchSearch && product.isActive;
   });
 
   const handleAddToCart = (product: Product) => {
     if (product.stock <= 0) {
-      toast.error('Stok habis!');
+      toast.error("Stok habis!");
       return;
     }
     addItem({
@@ -109,55 +183,60 @@ export default function KasirPage() {
 
   const handleScanBarcode = async (barcode: string) => {
     try {
-      const res = await fetch(`/api/products?storeId=${store?.id || 'demo-store'}&barcode=${barcode}`);
+      const res = await fetch(
+        `/api/products?storeId=${store?.id || "demo-store"}&barcode=${barcode}`
+      );
       const data = await res.json();
-      
+
       let productList = [];
       if (data.products && Array.isArray(data.products)) {
         productList = data.products;
       } else if (Array.isArray(data)) {
         productList = data;
       }
-      
+
       if (productList.length > 0) {
         handleAddToCart(productList[0]);
       } else {
-        toast.error('Produk tidak ditemukan');
+        toast.error("Produk tidak ditemukan");
       }
     } catch (error) {
-      toast.error('Gagal mencari produk');
+      toast.error("Gagal mencari produk");
     }
   };
 
-  const handleQuantityInputStart = (productId: string, currentQuantity: number) => {
+  const handleQuantityInputStart = (
+    productId: string,
+    currentQuantity: number
+  ) => {
     setEditingQuantity(productId);
     setQuantityInput(currentQuantity.toString());
   };
 
   const handleQuantityInputChange = (value: string) => {
-    if (value === '' || /^\d+$/.test(value)) {
+    if (value === "" || /^\d+$/.test(value)) {
       setQuantityInput(value);
     }
   };
 
   const handleQuantityInputSubmit = (productId: string, maxStock: number) => {
     const newQuantity = parseInt(quantityInput) || 0;
-    
+
     if (newQuantity <= 0) {
-      toast.error('Quantity harus lebih dari 0!');
+      toast.error("Quantity harus lebih dari 0!");
       setEditingQuantity(null);
       return;
     }
-    
+
     if (newQuantity > maxStock) {
       toast.error(`Stok tidak cukup! Maksimal: ${maxStock}`);
       setQuantityInput(maxStock.toString());
       return;
     }
-    
+
     updateQuantity(productId, newQuantity);
     setEditingQuantity(null);
-    toast.success('Quantity diupdate');
+    toast.success("Quantity diupdate");
   };
 
   const handleQuantityInputBlur = (productId: string, maxStock: number) => {
@@ -170,7 +249,13 @@ export default function KasirPage() {
 
   const handleCheckout = async () => {
     if (items.length === 0) {
-      toast.error('Keranjang kosong!');
+      toast.error("Keranjang kosong!");
+      return;
+    }
+
+    if (!currentCashier || !currentCashier.id) {
+      toast.error("Session expired. Silakan login kembali.");
+      router.push("/login");
       return;
     }
 
@@ -181,28 +266,16 @@ export default function KasirPage() {
     const paid = parseFloat(amountPaid) || 0;
     const change = paid - total;
 
-    if (paymentMethod === 'CASH' && paid < total) {
-      toast.error('Jumlah bayar kurang!');
+    if (paymentMethod === "CASH" && paid < total) {
+      toast.error("Jumlah bayar kurang!");
       return;
     }
 
     try {
       setLoading(true);
 
-      const sessionData = localStorage.getItem('cashier_session');
-      let cashierId = 'demo-cashier';
-      
-      if (sessionData) {
-        try {
-          const session = JSON.parse(sessionData);
-          cashierId = session.userId || 'demo-cashier';
-        } catch (e) {
-          console.error('Failed to parse session:', e);
-        }
-      }
-      
       const transactionData = {
-        items: items.map(item => ({
+        items: items.map((item) => ({
           productId: item.productId,
           name: item.name,
           quantity: item.quantity,
@@ -219,47 +292,58 @@ export default function KasirPage() {
         change: Math.max(0, change),
         customerName: customerName || undefined,
         notes: notes || undefined,
-        storeId: store?.id || 'demo-store',
-        cashierId,
+        storeId: store?.id || "demo-store",
+        cashierId: currentCashier.id,
       };
 
-      const res = await fetch('/api/transactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      console.log("🔄 Creating transaction with cashier:", {
+        cashierId: currentCashier.id,
+        cashierName: currentCashier.fullName,
+        timestamp: new Date().toISOString(),
+      });
+
+      const res = await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(transactionData),
       });
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to create transaction');
+        throw new Error(errorData.error || "Failed to create transaction");
       }
 
       const transaction = await res.json();
-      
-      toast.success('Transaksi berhasil!');
-      
+
+      console.log("✅ Transaction created:", {
+        invoiceNumber: transaction.invoiceNumber,
+        cashierId: transaction.cashierId,
+        timestamp: new Date().toISOString(),
+      });
+
+      toast.success("Transaksi berhasil!");
+
       setCompletedTransaction(transaction);
       setShowCheckout(false);
       setShowReceipt(true);
       clearCart();
-      
-      setAmountPaid('');
-      setCustomerName('');
-      setNotes('');
-      setPaymentMethod('CASH');
-      
+
+      setAmountPaid("");
+      setCustomerName("");
+      setNotes("");
+      setPaymentMethod("CASH");
+
       loadProducts();
-      
     } catch (error: any) {
-      console.error('Transaction error:', error);
-      toast.error(error.message || 'Gagal memproses transaksi');
+      console.error("❌ Transaction error:", error);
+      toast.error(error.message || "Gagal memproses transaksi");
     } finally {
       setLoading(false);
     }
   };
 
   const quickCashAmounts = [10000, 20000, 50000, 100000, 200000, 500000];
-  
+
   const handleQuickCash = (amount: number) => {
     setAmountPaid(amount.toString());
   };
@@ -271,21 +355,50 @@ export default function KasirPage() {
   const paid = parseFloat(amountPaid) || 0;
   const change = paid - total;
 
+  if (!currentCashier) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Memuat session...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <NotificationBanner />
       <Toaster position="top-right" />
-      
+
       <div className="flex h-full bg-gray-50 dark:bg-gray-900">
         <div className="flex-1 flex flex-col overflow-hidden">
           <header className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 px-6 py-4">
             <div className="flex items-center justify-between mb-4">
-              <ThemeToggle />
-              {taxRate > 0 && (
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Pajak: {taxRate}%
+              <div className="flex items-center gap-4">
+                <ThemeToggle />
+                <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-900 rounded-lg">
+                  <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                    {currentCashier.fullName}
+                  </span>
                 </div>
-              )}
+              </div>
+              <div className="flex items-center gap-4">
+                {taxRate > 0 && (
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Pajak: {taxRate}%
+                  </div>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-3 py-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
+                  title="Logout"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="text-sm font-medium">Logout</span>
+                </button>
+              </div>
             </div>
 
             <div className="flex gap-4">
@@ -310,11 +423,11 @@ export default function KasirPage() {
 
             <div className="flex gap-2 mt-4 overflow-x-auto">
               <button
-                onClick={() => setSelectedCategory('all')}
+                onClick={() => setSelectedCategory("all")}
                 className={`px-4 py-2 rounded-lg whitespace-nowrap ${
-                  selectedCategory === 'all'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  selectedCategory === "all"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                 }`}
               >
                 Semua
@@ -325,8 +438,8 @@ export default function KasirPage() {
                   onClick={() => setSelectedCategory(cat.id)}
                   className={`px-4 py-2 rounded-lg whitespace-nowrap ${
                     selectedCategory === cat.id
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
                   }`}
                 >
                   {cat.icon} {cat.name}
@@ -347,16 +460,16 @@ export default function KasirPage() {
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {filteredProducts.map((product) => {
                   const isOutOfStock = product.stock <= 0;
-                  
+
                   return (
                     <button
                       key={product.id}
                       onClick={() => handleAddToCart(product)}
                       disabled={isOutOfStock}
                       className={`bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-lg transition-shadow border dark:border-gray-700 ${
-                        isOutOfStock 
-                          ? 'opacity-50 cursor-not-allowed' 
-                          : 'hover:border-blue-500 dark:hover:border-blue-500'
+                        isOutOfStock
+                          ? "opacity-50 cursor-not-allowed"
+                          : "hover:border-blue-500 dark:hover:border-blue-500"
                       }`}
                     >
                       <div className="relative">
@@ -365,18 +478,19 @@ export default function KasirPage() {
                             src={product.image}
                             alt={product.name}
                             className={`w-full h-32 object-cover rounded-lg mb-2 ${
-                              isOutOfStock ? 'grayscale' : ''
+                              isOutOfStock ? "grayscale" : ""
                             }`}
                           />
                         ) : (
-                          <div className={`w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg mb-2 flex items-center justify-center ${
-                            isOutOfStock ? 'grayscale' : ''
-                          }`}>
+                          <div
+                            className={`w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg mb-2 flex items-center justify-center ${
+                              isOutOfStock ? "grayscale" : ""
+                            }`}
+                          >
                             <span className="text-4xl">📦</span>
                           </div>
                         )}
-                        
-                        {/* Out of Stock Badge */}
+
                         {isOutOfStock && (
                           <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 rounded-lg">
                             <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold">
@@ -385,22 +499,24 @@ export default function KasirPage() {
                           </div>
                         )}
                       </div>
-                      
+
                       <h3 className="font-semibold text-sm mb-1 truncate dark:text-white">
                         {product.name}
                       </h3>
                       <p className="text-blue-600 dark:text-blue-400 font-bold">
                         {formatCurrency(product.price)}
                       </p>
-                      <p className={`text-xs mt-1 font-semibold ${
-                        isOutOfStock 
-                          ? 'text-red-600 dark:text-red-400' 
-                          : product.stock <= product.minStock 
-                            ? 'text-orange-600 dark:text-orange-400' 
-                            : 'text-gray-500 dark:text-gray-400'
-                      }`}>
+                      <p
+                        className={`text-xs mt-1 font-semibold ${
+                          isOutOfStock
+                            ? "text-red-600 dark:text-red-400"
+                            : product.stock <= product.minStock
+                            ? "text-orange-600 dark:text-orange-400"
+                            : "text-gray-500 dark:text-gray-400"
+                        }`}
+                      >
                         Stok: {product.stock}
-                        {isOutOfStock && ' - HABIS'}
+                        {isOutOfStock && " - HABIS"}
                       </p>
                     </button>
                   );
@@ -429,9 +545,12 @@ export default function KasirPage() {
               <div className="space-y-3">
                 {items.map((item) => {
                   const maxStock = item.maxStock || 999;
-                  
+
                   return (
-                    <div key={item.productId} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                    <div
+                      key={item.productId}
+                      className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3"
+                    >
                       <div className="flex justify-between items-start mb-2">
                         <h4 className="font-semibold text-sm flex-1 dark:text-white">
                           {item.name}
@@ -443,26 +562,38 @@ export default function KasirPage() {
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                            onClick={() =>
+                              updateQuantity(item.productId, item.quantity - 1)
+                            }
                             className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center justify-center font-bold"
                           >
                             -
                           </button>
-                          
+
                           {editingQuantity === item.productId ? (
                             <input
                               type="text"
                               value={quantityInput}
-                              onChange={(e) => handleQuantityInputChange(e.target.value)}
-                              onBlur={() => handleQuantityInputBlur(item.productId, maxStock)}
+                              onChange={(e) =>
+                                handleQuantityInputChange(e.target.value)
+                              }
+                              onBlur={() =>
+                                handleQuantityInputBlur(
+                                  item.productId,
+                                  maxStock
+                                )
+                              }
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  handleQuantityInputSubmit(item.productId, maxStock);
-                                } else if (e.key === 'Escape') {
+                                if (e.key === "Enter") {
+                                  handleQuantityInputSubmit(
+                                    item.productId,
+                                    maxStock
+                                  );
+                                } else if (e.key === "Escape") {
                                   setEditingQuantity(null);
                                 }
                               }}
@@ -471,14 +602,19 @@ export default function KasirPage() {
                             />
                           ) : (
                             <button
-                              onClick={() => handleQuantityInputStart(item.productId, item.quantity)}
+                              onClick={() =>
+                                handleQuantityInputStart(
+                                  item.productId,
+                                  item.quantity
+                                )
+                              }
                               className="w-16 text-center font-semibold dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600 rounded py-1"
                               title="Klik untuk input manual"
                             >
                               {item.quantity}
                             </button>
                           )}
-                          
+
                           <button
                             onClick={() => {
                               if (item.quantity >= maxStock) {
@@ -492,7 +628,7 @@ export default function KasirPage() {
                             +
                           </button>
                         </div>
-                        
+
                         <div className="text-right">
                           <p className="text-sm text-gray-500 dark:text-gray-400">
                             {formatCurrency(item.price)}
@@ -502,7 +638,7 @@ export default function KasirPage() {
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                         Stok tersedia: {maxStock}
                       </div>
@@ -517,7 +653,9 @@ export default function KasirPage() {
             <div className="space-y-2 mb-4">
               <div className="flex justify-between">
                 <span className="dark:text-gray-300">Subtotal:</span>
-                <span className="font-semibold dark:text-white">{formatCurrency(subtotal)}</span>
+                <span className="font-semibold dark:text-white">
+                  {formatCurrency(subtotal)}
+                </span>
               </div>
               {tax > 0 && (
                 <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
@@ -552,18 +690,37 @@ export default function KasirPage() {
           <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b dark:border-gray-700 flex items-center justify-between">
               <h2 className="text-2xl font-bold dark:text-white">Checkout</h2>
-              <button onClick={() => setShowCheckout(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+              <button
+                onClick={() => setShowCheckout(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              >
                 ✕
               </button>
             </div>
 
             <div className="p-6 space-y-6">
+              <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <span className="text-sm text-blue-800 dark:text-blue-200">
+                    Kasir: <strong>{currentCashier.fullName}</strong>
+                  </span>
+                </div>
+              </div>
+
               <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                <h3 className="font-semibold mb-3 dark:text-white">Ringkasan Pesanan</h3>
+                <h3 className="font-semibold mb-3 dark:text-white">
+                  Ringkasan Pesanan
+                </h3>
                 <div className="space-y-2 text-sm">
                   {items.map((item) => (
-                    <div key={item.productId} className="flex justify-between dark:text-gray-300">
-                      <span>{item.name} x{item.quantity}</span>
+                    <div
+                      key={item.productId}
+                      className="flex justify-between dark:text-gray-300"
+                    >
+                      <span>
+                        {item.name} x{item.quantity}
+                      </span>
                       <span>{formatCurrency(item.subtotal)}</span>
                     </div>
                   ))}
@@ -587,29 +744,35 @@ export default function KasirPage() {
               </div>
 
               <div>
-                <label className="block font-semibold mb-2 dark:text-white">Metode Pembayaran</label>
+                <label className="block font-semibold mb-2 dark:text-white">
+                  Metode Pembayaran
+                </label>
                 <div className="grid grid-cols-2 gap-3">
-                  {(['CASH', 'CARD', 'QRIS', 'TRANSFER'] as const).map((method) => (
-                    <button
-                      key={method}
-                      type="button"
-                      onClick={() => setPaymentMethod(method)}
-                      className={`p-4 border-2 rounded-lg transition-colors ${
-                        paymentMethod === method
-                          ? 'border-blue-600 bg-blue-50 dark:bg-blue-900 dark:text-white'
-                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:text-white'
-                      }`}
-                    >
-                      <span className="font-semibold">{method}</span>
-                    </button>
-                  ))}
+                  {(["CASH", "CARD", "QRIS", "TRANSFER"] as const).map(
+                    (method) => (
+                      <button
+                        key={method}
+                        type="button"
+                        onClick={() => setPaymentMethod(method)}
+                        className={`p-4 border-2 rounded-lg transition-colors ${
+                          paymentMethod === method
+                            ? "border-blue-600 bg-blue-50 dark:bg-blue-900 dark:text-white"
+                            : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:text-white"
+                        }`}
+                      >
+                        <span className="font-semibold">{method}</span>
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
 
-              {paymentMethod === 'CASH' && (
+              {paymentMethod === "CASH" && (
                 <div>
-                  <label className="block font-semibold mb-2 dark:text-white">Jumlah Bayar</label>
-                  
+                  <label className="block font-semibold mb-2 dark:text-white">
+                    Jumlah Bayar
+                  </label>
+
                   <div className="grid grid-cols-3 gap-2 mb-3">
                     {quickCashAmounts.map((amount) => (
                       <button
@@ -622,7 +785,7 @@ export default function KasirPage() {
                       </button>
                     ))}
                   </div>
-                  
+
                   <input
                     type="number"
                     value={amountPaid}
@@ -635,23 +798,28 @@ export default function KasirPage() {
                     <div className="mt-2 p-3 bg-green-50 dark:bg-green-900 rounded-lg">
                       <div className="flex justify-between text-green-800 dark:text-green-200">
                         <span>Kembalian:</span>
-                        <span className="font-bold text-xl">{formatCurrency(change)}</span>
+                        <span className="font-bold text-xl">
+                          {formatCurrency(change)}
+                        </span>
                       </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {paymentMethod !== 'CASH' && (
+              {paymentMethod !== "CASH" && (
                 <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
                   <p className="text-sm text-blue-800 dark:text-blue-200">
-                    ✓ Pembayaran {paymentMethod}: <strong>{formatCurrency(total)}</strong>
+                    ✓ Pembayaran {paymentMethod}:{" "}
+                    <strong>{formatCurrency(total)}</strong>
                   </p>
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-semibold mb-1 dark:text-white">Nama Pelanggan (Opsional)</label>
+                <label className="block text-sm font-semibold mb-1 dark:text-white">
+                  Nama Pelanggan (Opsional)
+                </label>
                 <input
                   type="text"
                   value={customerName}
@@ -662,7 +830,9 @@ export default function KasirPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-1 dark:text-white">Catatan</label>
+                <label className="block text-sm font-semibold mb-1 dark:text-white">
+                  Catatan
+                </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
@@ -684,10 +854,13 @@ export default function KasirPage() {
               <button
                 type="button"
                 onClick={handleCheckout}
-                disabled={loading || (paymentMethod === 'CASH' && (!amountPaid || paid < total))}
+                disabled={
+                  loading ||
+                  (paymentMethod === "CASH" && (!amountPaid || paid < total))
+                }
                 className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
-                {loading ? 'Memproses...' : 'Bayar Sekarang'}
+                {loading ? "Memproses..." : "Bayar Sekarang"}
               </button>
             </div>
           </div>
@@ -697,7 +870,7 @@ export default function KasirPage() {
       {completedTransaction && (
         <Receipt
           transaction={completedTransaction}
-          storeName={store?.name || 'Toko Modern'}
+          storeName={store?.name || "Toko Modern"}
           storeAddress={store?.address}
           storePhone={store?.phone}
           receiptFooter={store?.receiptFooter}
