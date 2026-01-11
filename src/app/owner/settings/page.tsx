@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Store, Save, Lock, Eye, EyeOff, Shield, Upload, RefreshCw, Download } from 'lucide-react';
+import { Store, Save, Lock, Eye, EyeOff, Shield, Download, Upload } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import toast from 'react-hot-toast';
-import { backupAllData } from '@/lib/storage';
 
 export default function SettingsPage() {
   const { store, setStore } = useSettingsStore();
   const [loading, setLoading] = useState(false);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [showPasswords, setShowPasswords] = useState({
     current: false,
@@ -154,20 +155,131 @@ export default function SettingsPage() {
     }
   };
 
-  const handleBackup = () => {
+  const handleBackup = async () => {
     try {
-      const backup = backupAllData();
+      setBackupLoading(true);
+      toast.loading('Sedang membuat backup...', { id: 'backup' });
+      
+      // Call backup API endpoint
+      const res = await fetch('/api/backup?storeId=demo-store');
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to create backup');
+      }
+      
+      const backup = await res.json();
+      
+      console.log('Backup data:', backup); // Debug log
+      
+      // Validate backup data
+      if (!backup || !backup.store) {
+        throw new Error('Invalid backup data received');
+      }
+      
+      // Create downloadable file
       const dataStr = JSON.stringify(backup, null, 2);
       const blob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `backup-${new Date().toISOString()}.json`;
+      
+      // Create filename with date
+      const date = new Date().toISOString().split('T')[0];
+      const storeName = backup.store?.name?.replace(/\s+/g, '-') || 'toko';
+      link.download = `backup-${storeName}-${date}.json`;
+      
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast.success('Backup berhasil didownload!');
+      
+      toast.success(`Backup berhasil! ${backup.summary?.productsCount || 0} produk, ${backup.summary?.transactionsCount || 0} transaksi`, { id: 'backup' });
     } catch (error) {
-      toast.error('Gagal membuat backup');
+      console.error('Backup error:', error);
+      toast.error(error instanceof Error ? error.message : 'Gagal membuat backup', { id: 'backup' });
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  const handleRestore = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.endsWith('.json')) {
+      toast.error('File harus berformat JSON');
+      return;
+    }
+
+    // Confirm restore
+    const confirmed = window.confirm(
+      '⚠️ PERHATIAN!\n\n' +
+      'Restore akan menimpa data yang ada dengan data dari backup.\n' +
+      'Data seperti produk, kategori, dan settings akan di-update.\n\n' +
+      'Apakah Anda yakin ingin melanjutkan?'
+    );
+
+    if (!confirmed) {
+      event.target.value = ''; // Reset input
+      return;
+    }
+
+    try {
+      setRestoreLoading(true);
+      toast.loading('Sedang restore backup...', { id: 'restore' });
+
+      // Read file
+      const fileContent = await file.text();
+      const backupData = JSON.parse(fileContent);
+
+      // Validate backup data
+      if (!backupData.version || !backupData.store) {
+        throw new Error('File backup tidak valid');
+      }
+
+      console.log('Restoring backup:', backupData.summary);
+
+      // Send to API
+      const res = await fetch('/api/backup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(backupData),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to restore backup');
+      }
+
+      const result = await res.json();
+
+      toast.success(
+        `✅ Restore berhasil!\n` +
+        `• ${result.restored?.categories || 0} kategori\n` +
+        `• ${result.restored?.products || 0} produk\n` +
+        `• ${result.restored?.settings || 0} settings\n` +
+        `• ${result.restored?.users || 0} kasir`,
+        { id: 'restore', duration: 5000 }
+      );
+
+      // Reload data
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+
+    } catch (error) {
+      console.error('Restore error:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Gagal restore backup',
+        { id: 'restore' }
+      );
+    } finally {
+      setRestoreLoading(false);
+      event.target.value = ''; // Reset input
     }
   };
 
@@ -403,21 +515,71 @@ export default function SettingsPage() {
           <h2 className="text-xl font-bold mb-6 dark:text-white">Backup & Restore</h2>
 
           <div className="space-y-4">
+            {/* Backup Section */}
             <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="font-semibold dark:text-white">Backup Data</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Export data toko (cart, settings, dll)
+                  Export semua data toko (produk, transaksi, kategori, dll)
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleBackup}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                disabled={backupLoading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
-                Backup
+                {backupLoading ? 'Memproses...' : 'Backup'}
               </button>
+            </div>
+
+            {/* Restore Section */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-orange-300 dark:border-orange-700">
+              <div>
+                <p className="font-semibold dark:text-white flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                  Restore Data
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Import data dari file backup (.json)
+                </p>
+                <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                  ⚠️ Akan menimpa data yang ada
+                </p>
+              </div>
+              <div>
+                <input
+                  type="file"
+                  id="restore-file"
+                  accept=".json"
+                  onChange={handleRestore}
+                  disabled={restoreLoading}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="restore-file"
+                  className={`px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 cursor-pointer flex items-center gap-2 ${
+                    restoreLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <Upload className="w-4 h-4" />
+                  {restoreLoading ? 'Restoring...' : 'Restore'}
+                </label>
+              </div>
+            </div>
+
+            {/* Info Section */}
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">
+                📋 Cara Menggunakan Backup & Restore:
+              </h3>
+              <ol className="text-sm text-blue-800 dark:text-blue-300 space-y-1 ml-4 list-decimal">
+                <li><strong>Backup:</strong> Klik tombol "Backup" untuk download file JSON berisi semua data toko</li>
+                <li><strong>Restore:</strong> Klik tombol "Restore" dan pilih file backup (.json) yang ingin di-import</li>
+                <li><strong>Perhatian:</strong> Restore akan menimpa data yang ada dengan data dari backup</li>
+                <li><strong>Rekomendasi:</strong> Lakukan backup berkala sebelum melakukan perubahan besar</li>
+              </ol>
             </div>
           </div>
         </div>

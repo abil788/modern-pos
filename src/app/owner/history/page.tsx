@@ -27,6 +27,10 @@ export default function HistoryPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  // Stats for current filter (not just current page)
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [avgTransaction, setAvgTransaction] = useState(0);
+
   useEffect(() => {
     loadTransactions();
     loadCashiers();
@@ -41,6 +45,11 @@ export default function HistoryPage() {
         limit: ITEMS_PER_PAGE.toString(),
       });
 
+      // Add search query to API call - this will search across ALL data
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+
       // Add date filter
       if (dateFilter !== 'all') {
         const { startDate, endDate } = getDateRange(dateFilter);
@@ -52,27 +61,30 @@ export default function HistoryPage() {
       const data = await res.json();
       
       if (data.transactions && Array.isArray(data.transactions)) {
-        // Filter by search on client-side after receiving paginated data
-        let filtered = data.transactions;
-        if (searchQuery) {
-          filtered = filtered.filter((t: Transaction) =>
-            t.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            t.customerName?.toLowerCase().includes(searchQuery.toLowerCase())
-          );
-        }
-        
-        setTransactions(filtered);
+        setTransactions(data.transactions);
         setTotalPages(data.pagination?.totalPages || 1);
         setTotalCount(data.pagination?.totalCount || 0);
+        
+        // Set stats from pagination data
+        setTotalRevenue(data.pagination?.totalRevenue || 0);
+        setAvgTransaction(data.pagination?.avgTransaction || 0);
       } else if (Array.isArray(data)) {
         setTransactions(data);
+        // Calculate stats from data
+        const revenue = data.reduce((sum: number, t: Transaction) => sum + t.total, 0);
+        setTotalRevenue(revenue);
+        setAvgTransaction(data.length > 0 ? revenue / data.length : 0);
       } else {
         setTransactions([]);
+        setTotalRevenue(0);
+        setAvgTransaction(0);
       }
     } catch (error) {
       console.error('Error loading transactions:', error);
       toast.error('Gagal memuat history transaksi');
       setTransactions([]);
+      setTotalRevenue(0);
+      setAvgTransaction(0);
     } finally {
       setLoading(false);
     }
@@ -115,12 +127,12 @@ export default function HistoryPage() {
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset to first page when searching
   };
 
   const handleDateFilterChange = (value: string) => {
     setDateFilter(value);
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset to first page when changing filter
   };
 
   const handlePageChange = (page: number) => {
@@ -129,17 +141,6 @@ export default function HistoryPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
-
-  const totalRevenue = transactions.reduce((sum, t) => sum + t.total, 0);
-  const avgTransaction = transactions.length > 0 ? totalRevenue / transactions.length : 0;
-
-  // Filter transactions based on search query
-  const filteredTransactions = searchQuery
-    ? transactions.filter((t) =>
-        t.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.customerName?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : transactions;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -159,7 +160,7 @@ export default function HistoryPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Cari invoice atau pelanggan..."
+              placeholder="Cari invoice atau pelanggan di semua data..."
               className="w-full pl-10 pr-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
@@ -181,27 +182,38 @@ export default function HistoryPage() {
             </select>
           </div>
         </div>
+        
+        {searchQuery && (
+          <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+            Menampilkan hasil pencarian untuk: <span className="font-semibold">"{searchQuery}"</span>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Total Transaksi</p>
-          <p className="text-3xl font-bold dark:text-white">{transactions.length}</p>
-          <p className="text-xs text-gray-400 mt-1">Halaman {currentPage}</p>
+          <p className="text-3xl font-bold dark:text-white">{totalCount}</p>
+          <p className="text-xs text-gray-400 mt-1">
+            {searchQuery || dateFilter !== 'all' ? 'Dari filter/pencarian' : 'Keseluruhan'}
+          </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Total Pendapatan</p>
           <p className="text-3xl font-bold text-green-600 dark:text-green-400">
             {formatCurrency(totalRevenue)}
           </p>
-          <p className="text-xs text-gray-400 mt-1">Halaman {currentPage}</p>
+          <p className="text-xs text-gray-400 mt-1">
+            {searchQuery || dateFilter !== 'all' ? 'Dari filter/pencarian' : 'Keseluruhan'}
+          </p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">Rata-rata Transaksi</p>
           <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
             {formatCurrency(avgTransaction)}
           </p>
+          <p className="text-xs text-gray-400 mt-1">Per transaksi</p>
         </div>
       </div>
 
@@ -243,15 +255,19 @@ export default function HistoryPage() {
                     </div>
                   </td>
                 </tr>
-              ) : filteredTransactions.length === 0 ? (
+              ) : transactions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     <Receipt className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                    <p>Tidak ada transaksi</p>
+                    <p>
+                      {searchQuery 
+                        ? `Tidak ada transaksi yang cocok dengan "${searchQuery}"` 
+                        : 'Tidak ada transaksi'}
+                    </p>
                   </td>
                 </tr>
               ) : (
-                filteredTransactions.map((transaction) => (
+                transactions.map((transaction) => (
                   <tr key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 text-sm font-medium text-blue-600 dark:text-blue-400">
                       {transaction.invoiceNumber}
