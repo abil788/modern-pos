@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const storeId = searchParams.get('storeId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const search = searchParams.get('search'); 
     
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
@@ -25,6 +26,23 @@ export async function GET(request: NextRequest) {
         gte: new Date(startDate),
         lte: new Date(endDate),
       };
+    }
+
+    if (search) {
+      where.OR = [
+        {
+          invoiceNumber: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          customerName: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+      ];
     }
 
     const [transactions, totalCount] = await Promise.all([
@@ -50,8 +68,21 @@ export async function GET(request: NextRequest) {
       prisma.transaction.count({ where }),
     ]);
 
+    const statsStartTime = Date.now();
+    const allFilteredTransactions = await prisma.transaction.findMany({
+      where,
+      select: {
+        total: true,
+      },
+    });
+
+    const totalRevenue = allFilteredTransactions.reduce((sum, t) => sum + t.total, 0);
+    const avgTransaction = totalCount > 0 ? totalRevenue / totalCount : 0;
+    
+    console.log(`[TRANSACTIONS API] Stats calculation: ${Date.now() - statsStartTime}ms`);
+
     const queryTime = Date.now() - startTime;
-    console.log(`[TRANSACTIONS API] GET Query took: ${queryTime}ms | Transactions: ${transactions.length} | Page: ${page}`);
+    console.log(`[TRANSACTIONS API] GET Query took: ${queryTime}ms | Transactions: ${transactions.length} | Page: ${page}${search ? ` | Search: "${search}"` : ''}`);
 
     return NextResponse.json({
       transactions,
@@ -61,6 +92,8 @@ export async function GET(request: NextRequest) {
         totalCount,
         totalPages: Math.ceil(totalCount / limit),
         hasMore: offset + transactions.length < totalCount,
+        totalRevenue,     
+        avgTransaction,    
       },
       performance: {
         queryTime: `${queryTime}ms`,
