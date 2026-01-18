@@ -189,7 +189,7 @@ export default function KasirPage() {
       setAppliedPromo(null);
       setPromoDiscount(0);
       setPromoCode("");
-      toast.info("Promo dibatalkan karena keranjang berubah");
+      toast("Promo dibatalkan karena keranjang berubah");
     }
   };
 
@@ -255,7 +255,7 @@ export default function KasirPage() {
       setAppliedPromo(null);
       setPromoDiscount(0);
       setPromoCode("");
-      toast.info("Promo dibatalkan karena keranjang berubah");
+      toast("Promo dibatalkan karena keranjang berubah");
     }
   };
 
@@ -647,7 +647,7 @@ export default function KasirPage() {
                               setAppliedPromo(null);
                               setPromoDiscount(0);
                               setPromoCode("");
-                              toast.info("Promo dibatalkan");
+                              toast("Promo dibatalkan");
                             }
                           }}
                           className="text-red-600 hover:text-red-700 ml-2 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900"
@@ -665,7 +665,7 @@ export default function KasirPage() {
                                 setAppliedPromo(null);
                                 setPromoDiscount(0);
                                 setPromoCode("");
-                                toast.info("Promo dibatalkan");
+                                toast("Promo dibatalkan");
                               }
                             }}
                             className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center justify-center font-bold"
@@ -725,7 +725,7 @@ export default function KasirPage() {
                                 setAppliedPromo(null);
                                 setPromoDiscount(0);
                                 setPromoCode("");
-                                toast.info("Promo dibatalkan");
+                                toast("Promo dibatalkan");
                               }
                             }}
                             className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center justify-center font-bold"
