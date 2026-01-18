@@ -1,4 +1,3 @@
-// src/app/api/dashboard/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 
@@ -80,14 +79,17 @@ export async function GET(request: NextRequest) {
     const todayRevenue = transactions.reduce((sum, t) => sum + t.total, 0);
     const todayTransactions = transactions.length;
 
-    // Calculate profit
     let todayProfit = 0;
     for (const transaction of transactions) {
+      let transactionItemProfit = 0;
       for (const item of transaction.items) {
         const cost = item.product?.cost || 0;
         const profit = (item.price - cost) * item.quantity;
-        todayProfit += profit;
+        transactionItemProfit += profit;
       }
+      
+      const netProfit = transactionItemProfit - (transaction.promoDiscount || 0);
+      todayProfit += netProfit;
     }
 
     // Count low stock products
@@ -141,7 +143,7 @@ export async function GET(request: NextRequest) {
     const response = {
       todayRevenue,
       todayTransactions,
-      todayProfit,
+      todayProfit, // ✅ Now correctly accounts for promo discount
       lowStockProducts,
       topProducts,
       revenueChart,

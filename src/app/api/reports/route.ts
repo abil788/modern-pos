@@ -1,3 +1,4 @@
+// src/app/api/reports/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 
@@ -9,7 +10,6 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     
-    // 🆕 PAGINATION PARAMS
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
@@ -52,7 +52,6 @@ export async function GET(request: NextRequest) {
       createdAt: { gte: dateFrom, lte: dateTo },
     };
 
-    // 🆕 PARALLEL QUERIES dengan pagination
     const [transactions, totalCount] = await Promise.all([
       prisma.transaction.findMany({
         where,
@@ -71,13 +70,19 @@ export async function GET(request: NextRequest) {
     const totalTransactions = transactions.length;
     const totalTax = transactions.reduce((sum, t) => sum + t.tax, 0);
     const totalDiscount = transactions.reduce((sum, t) => sum + t.discount, 0);
+    
+    const totalPromoDiscount = transactions.reduce((sum, t) => sum + (t.promoDiscount || 0), 0);
 
     let totalProfit = 0;
     for (const transaction of transactions) {
+      let transactionItemProfit = 0;
       for (const item of transaction.items) {
         const profit = (item.price - (item.product?.cost || 0)) * item.quantity;
-        totalProfit += profit;
+        transactionItemProfit += profit;
       }
+      
+      const netProfit = transactionItemProfit - (transaction.promoDiscount || 0);
+      totalProfit += netProfit;
     }
 
     const byPaymentMethod = transactions.reduce((acc, t) => {
@@ -115,10 +120,14 @@ export async function GET(request: NextRequest) {
       acc[date].revenue += t.total;
       acc[date].transactions++;
       
+      let transactionItemProfit = 0;
       for (const item of t.items) {
         const profit = (item.price - (item.product?.cost || 0)) * item.quantity;
-        acc[date].profit += profit;
+        transactionItemProfit += profit;
       }
+      const netProfit = transactionItemProfit - (t.promoDiscount || 0);
+      acc[date].profit += netProfit;
+      
       return acc;
     }, {} as Record<string, any>);
 
@@ -132,7 +141,8 @@ export async function GET(request: NextRequest) {
         totalTransactions,
         totalTax,
         totalDiscount,
-        totalProfit,
+        totalPromoDiscount, 
+        totalProfit, 
         averageTransaction: totalTransactions > 0 ? totalRevenue / totalTransactions : 0,
       },
       byPaymentMethod,
@@ -147,8 +157,9 @@ export async function GET(request: NextRequest) {
         customerName: t.customerName,
         cashier: t.cashier,
         itemCount: t.items.length,
+        promoCode: t.promoCode, 
+        promoDiscount: t.promoDiscount, 
       })),
-      // 🆕 PAGINATION INFO
       pagination: {
         page,
         limit,
