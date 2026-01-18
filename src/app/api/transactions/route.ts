@@ -15,10 +15,12 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
 
+    // Validation
     if (!storeId) {
       return NextResponse.json({ error: 'Store ID required' }, { status: 400 });
     }
 
+    // Build WHERE clause
     const where: any = { storeId };
 
     if (startDate && endDate) {
@@ -45,7 +47,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const [transactions, totalCount] = await Promise.all([
+    const [transactions, totalCount, stats] = await Promise.all([
       prisma.transaction.findMany({
         where,
         include: {
@@ -65,21 +67,21 @@ export async function GET(request: NextRequest) {
         take: limit,
         skip: offset,
       }),
+      
+      // Get total count
       prisma.transaction.count({ where }),
+      
+      // Get aggregated stats (more efficient than fetching all records)
+      prisma.transaction.aggregate({
+        where,
+        _sum: {
+          total: true,
+        },
+      }),
     ]);
 
-    const statsStartTime = Date.now();
-    const allFilteredTransactions = await prisma.transaction.findMany({
-      where,
-      select: {
-        total: true,
-      },
-    });
-
-    const totalRevenue = allFilteredTransactions.reduce((sum, t) => sum + t.total, 0);
+    const totalRevenue = stats._sum.total || 0;
     const avgTransaction = totalCount > 0 ? totalRevenue / totalCount : 0;
-    
-    console.log(`[TRANSACTIONS API] Stats calculation: ${Date.now() - statsStartTime}ms`);
 
     const queryTime = Date.now() - startTime;
     console.log(`[TRANSACTIONS API] GET Query took: ${queryTime}ms | Transactions: ${transactions.length} | Page: ${page}${search ? ` | Search: "${search}"` : ''}`);
@@ -124,20 +126,30 @@ export async function POST(request: NextRequest) {
       customerPhone,
       notes,
       storeId,
-      cashierId, // ✅ CRITICAL: This must be sent from frontend
+      promoCode,        
+      promoDiscount,
+      cashierId,
     } = body;
 
-    console.log(`[TRANSACTIONS API] Received transaction data at ${new Date().toISOString()}`);
-    console.log(`[TRANSACTIONS API] Received cashierId: ${cashierId}`); // ✅ Log untuk debugging
+    console.log(`[TRANSACTIONS API] Processing transaction | Store: ${storeId} | Cashier: ${cashierId}`);
+    if (promoCode) {
+      console.log(`[TRANSACTIONS API] Promo applied: ${promoCode} | Discount: ${promoDiscount}`);
+    }
 
-    if (!items || items.length === 0 || !storeId) {
+    if (!items || items.length === 0) {
       return NextResponse.json(
-        { error: 'Items and store ID are required' },
+        { error: 'At least one item is required' },
         { status: 400 }
       );
     }
 
-    // ✅ CRITICAL FIX: cashierId WAJIB dikirim dari frontend
+    if (!storeId) {
+      return NextResponse.json(
+        { error: 'Store ID is required' },
+        { status: 400 }
+      );
+    }
+
     if (!cashierId) {
       return NextResponse.json(
         { error: 'Cashier ID is required. Please login again.' },
@@ -145,12 +157,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify cashier exists and belongs to the store
     const cashierStartTime = Date.now();
     const cashier = await prisma.user.findFirst({
       where: { 
         id: cashierId,
         storeId: storeId,
+        isActive: true, // Ensure cashier is active
       },
       select: {
         id: true,
@@ -162,18 +174,40 @@ export async function POST(request: NextRequest) {
 
     if (!cashier) {
       return NextResponse.json(
-        { error: 'Invalid cashier. Please login again.' },
+        { error: 'Invalid or inactive cashier. Please login again.' },
         { status: 403 }
       );
     }
 
-    console.log(`[TRANSACTIONS API] Cashier verified: ${Date.now() - cashierStartTime}ms | Cashier: ${cashier.fullName} (${cashier.id})`);
+    console.log(`[TRANSACTIONS API] Cashier verified in ${Date.now() - cashierStartTime}ms | ${cashier.fullName}`);
+
+    let validatedPromo = null;
+    if (promoCode) {
+      const promoStartTime = Date.now();
+      
+      validatedPromo = await prisma.promo.findFirst({
+        where: {
+          code: promoCode.toUpperCase(),
+          storeId,
+          isActive: true,
+          startDate: { lte: new Date() },
+          endDate: { gte: new Date() },
+        },
+      });
+
+      if (!validatedPromo) {
+        console.warn(`[TRANSACTIONS API] Invalid promo code: ${promoCode}`);
+      } else {
+        console.log(`[TRANSACTIONS API] Promo validated in ${Date.now() - promoStartTime}ms | ${validatedPromo.code}`);
+      }
+    }
 
     const invoiceStartTime = Date.now();
     const invoiceNumber = await generateInvoiceNumber(storeId);
-    console.log(`[TRANSACTIONS API] Invoice generation: ${Date.now() - invoiceStartTime}ms`);
+    console.log(`[TRANSACTIONS API] Invoice generated in ${Date.now() - invoiceStartTime}ms | ${invoiceNumber}`);
 
     const transactionStartTime = Date.now();
+    
     const transaction = await prisma.transaction.create({
       data: {
         invoiceNumber,
@@ -187,7 +221,9 @@ export async function POST(request: NextRequest) {
         customerName: customerName || null,
         customerPhone: customerPhone || null,
         notes: notes || null,
-        cashierId: cashier.id, // ✅ Use verified cashier ID
+        promoCode: validatedPromo ? validatedPromo.code : null,
+        promoDiscount: validatedPromo && promoDiscount ? parseFloat(promoDiscount.toString()) : 0,
+        cashierId: cashier.id,
         storeId,
         items: {
           create: items.map((item: any) => ({
@@ -212,45 +248,86 @@ export async function POST(request: NextRequest) {
         },
       },
     });
-    console.log(`[TRANSACTIONS API] Transaction creation: ${Date.now() - transactionStartTime}ms`);
+    
+    console.log(`[TRANSACTIONS API] Transaction created in ${Date.now() - transactionStartTime}ms | ${transaction.id}`);
+
+    if (validatedPromo && promoDiscount > 0) {
+      const promoLogStartTime = Date.now();
+      
+      try {
+        await Promise.all([
+          // Log promo usage
+          prisma.promoUsageLog.create({
+            data: {
+              promoId: validatedPromo.id,
+              promoCode: validatedPromo.code,
+              customerPhone: customerPhone || null,
+              transactionId: transaction.id,
+              invoiceNumber: transaction.invoiceNumber,
+              discountAmount: parseFloat(promoDiscount.toString()),
+              cashierId: cashier.id,
+              storeId,
+            },
+          }),
+          
+          // Increment usage count
+          prisma.promo.update({
+            where: { id: validatedPromo.id },
+            data: { usageCount: { increment: 1 } },
+          }),
+        ]);
+
+        console.log(`[TRANSACTIONS API] Promo logged in ${Date.now() - promoLogStartTime}ms | ${validatedPromo.code}`);
+      } catch (promoError) {
+        console.error('[TRANSACTIONS API] Error logging promo (non-critical):', promoError);
+        // Don't fail transaction if promo logging fails
+      }
+    }
 
     const stockStartTime = Date.now();
-    await Promise.all(
-      items.map((item: any) =>
-        prisma.product.update({
-          where: { id: item.productId },
-          data: {
-            stock: {
-              decrement: parseInt(item.quantity.toString()),
-            },
+    
+    const stockUpdates = items.map((item: any) =>
+      prisma.product.update({
+        where: { id: item.productId },
+        data: {
+          stock: {
+            decrement: parseInt(item.quantity.toString()),
           },
-        }).catch((error) => {
-          console.error(`[TRANSACTIONS API] Failed to update stock for product ${item.productId}:`, error);
-        })
-      )
+        },
+      }).catch((error) => {
+        console.error(`[TRANSACTIONS API] Failed to update stock for product ${item.productId}:`, error);
+        // Consider if you want to rollback the transaction here
+      })
     );
-    console.log(`[TRANSACTIONS API] Stock update: ${Date.now() - stockStartTime}ms`);
+
+    await Promise.all(stockUpdates);
+    console.log(`[TRANSACTIONS API] Stock updated in ${Date.now() - stockStartTime}ms | ${items.length} products`);
 
     const totalTime = Date.now() - startTime;
-    console.log(`[TRANSACTIONS API] Transaction created successfully in ${totalTime}ms | ID: ${transaction.id} | Cashier: ${cashier.fullName} (${cashier.id})`);
+    console.log(`[TRANSACTIONS API] ✅ Transaction completed in ${totalTime}ms | Invoice: ${transaction.invoiceNumber}`);
 
     return NextResponse.json({
       ...transaction,
       performance: {
         totalTime: `${totalTime}ms`,
         breakdown: {
-          cashierLookup: `${Date.now() - cashierStartTime}ms`,
+          cashierVerification: `${Date.now() - cashierStartTime}ms`,
           invoiceGeneration: `${Date.now() - invoiceStartTime}ms`,
           transactionCreation: `${Date.now() - transactionStartTime}ms`,
           stockUpdate: `${Date.now() - stockStartTime}ms`,
         },
       },
     }, { status: 201 });
+
   } catch (error: any) {
     const queryTime = Date.now() - startTime;
-    console.error(`[TRANSACTIONS API] POST Error after ${queryTime}ms:`, error);
+    console.error(`[TRANSACTIONS API] ❌ POST Error after ${queryTime}ms:`, error);
+    
     return NextResponse.json(
-      { error: error.message || 'Failed to create transaction' },
+      { 
+        error: error.message || 'Failed to create transaction',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+      },
       { status: 500 }
     );
   }

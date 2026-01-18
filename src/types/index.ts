@@ -89,6 +89,8 @@ export interface Transaction {
   cashierId: string;
   storeId: string;
   items: TransactionItem[];
+  promoCode?: string;
+  promoDiscount: number;
   createdAt: Date;
 }
 
@@ -157,4 +159,68 @@ export interface ActivityLog {
   action: string;
   details?: string;
   createdAt: Date;
+}
+
+export interface Promo {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  type: 'PERCENTAGE' | 'FIXED' | 'BUY_X_GET_Y';
+  value: number;
+  
+  // Conditions
+  minPurchase: number;
+  maxDiscount?: number;
+  applicableCategories: string[];
+  applicableProducts: string[];
+  
+  // Date & Time
+  startDate: Date;
+  endDate: Date;
+  validDays: string[];
+  validHours?: string;
+  
+  // Usage
+  usageLimit?: number;
+  usageCount: number;
+  perCustomerLimit?: number;
+  
+  // Buy X Get Y
+  buyQuantity?: number;
+  getQuantity?: number;
+  getProductId?: string;
+  
+  isActive: boolean;
+  productId?: string;
+  storeId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PromoUsageLog {
+  id: string;
+  promoId: string;
+  promoCode: string;
+  customerPhone?: string;
+  transactionId?: string;
+  invoiceNumber?: string;
+  discountAmount: number;
+  cashierId: string;
+  storeId: string;
+  createdAt: Date;
+}
+
+export interface PromoValidationResult {
+  valid: boolean;
+  promo?: {
+    id: string;
+    code: string;
+    name: string;
+    type: string;
+    value: number;
+  };
+  discount: number;
+  error?: string;
+  message?: string;
 }

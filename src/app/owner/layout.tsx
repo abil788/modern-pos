@@ -7,7 +7,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, Package, Receipt, DollarSign, 
   Settings, LogOut, ChevronLeft, ChevronRight,
-  Tag, History, Lock, Eye, EyeOff, Users
+  Tag, History, Lock, Eye, EyeOff, Users,
+  Gift
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -16,6 +17,7 @@ const navigation = [
   { name: 'Produk', href: '/owner/products', icon: Package },
   { name: 'Kategori', href: '/owner/categories', icon: Tag },
   { name: 'Staff', href: '/owner/staff', icon: Users },
+  { name: 'Promo', href: '/owner/promos', icon: Gift }, 
   { name: 'Laporan', href: '/owner/reports', icon: Receipt },
   { name: 'Pengeluaran', href: '/owner/expenses', icon: DollarSign },
   { name: 'History', href: '/owner/history', icon: History },

@@ -26,35 +26,37 @@ model Store {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  products     Product[]
-  categories   Category[]
-  transactions Transaction[]
-  expenses     Expense[]
-  users        User[]
-  settings     Setting[]
-  activityLogs ActivityLog[]
+  products       Product[]
+  categories     Category[]
+  transactions   Transaction[]
+  expenses       Expense[]
+  users          User[]
+  settings       Setting[]
+  activityLogs   ActivityLog[]
+  promos         Promo[]
+  promoUsageLogs PromoUsageLog[]
 }
 
 model User {
-  id           String    @id @default(cuid())
-  username     String    @unique
-  password     String    // Hanya untuk OWNER
-  pin          String?   // 4 digit PIN untuk KASIR
-  role         String    @default("CASHIER") // CASHIER, OWNER
-  fullName     String
-  photo        String?   // URL foto profil kasir
-  isActive     Boolean   @default(true)
-  isLocked     Boolean   @default(false)
-  lockedUntil  DateTime?
-  failedAttempts Int     @default(0)
-  lastLogin    DateTime?
-  storeId      String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  username       String    @unique
+  password       String
+  pin            String?
+  role           String    @default("CASHIER")
+  fullName       String
+  photo          String?
+  isActive       Boolean   @default(true)
+  isLocked       Boolean   @default(false)
+  lockedUntil    DateTime?
+  failedAttempts Int       @default(0)
+  lastLogin      DateTime?
+  storeId        String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  store         Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  transactions  Transaction[]
-  activityLogs  ActivityLog[]
+  store        Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+  activityLogs ActivityLog[]
 
   @@index([storeId, isActive])
   @@index([role])
@@ -93,8 +95,8 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  store            Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  category         Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  store            Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category         Category?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   variations       ProductVariation[]
   transactionItems TransactionItem[]
   promos           Promo[]
@@ -119,32 +121,37 @@ model ProductVariation {
 }
 
 model Transaction {
-  id              String   @id @default(cuid())
-  invoiceNumber   String   @unique
-  subtotal        Float
-  tax             Float    @default(0)
-  discount        Float    @default(0)
-  total           Float
-  paymentMethod   String   // CASH, CARD, QRIS, TRANSFER
-  amountPaid      Float
-  change          Float    @default(0)
-  customerName    String?
-  customerPhone   String?
-  notes           String?
-  cashierId       String
-  storeId         String
-  isSynced        Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String  @id @default(cuid())
+  invoiceNumber String  @unique
+  subtotal      Float
+  tax           Float   @default(0)
+  discount      Float   @default(0)
+  total         Float
+  paymentMethod String
+  amountPaid    Float
+  change        Float   @default(0)
+  customerName  String?
+  customerPhone String?
+  notes         String?
+
+  promoCode     String?
+  promoDiscount Float   @default(0)
+
+  cashierId String
+  storeId   String
+  isSynced  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   store   Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
   cashier User              @relation(fields: [cashierId], references: [id])
   items   TransactionItem[]
 
-  @@index([storeId, createdAt]) 
+  @@index([storeId, createdAt])
   @@index([invoiceNumber])
   @@index([createdAt])
   @@index([cashierId])
+  @@index([promoCode])
 }
 
 model TransactionItem {
@@ -157,11 +164,11 @@ model TransactionItem {
   subtotal      Float
   discount      Float    @default(0)
   createdAt     DateTime @default(now())
-  
+
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   product     Product     @relation(fields: [productId], references: [id])
 
-  @@index([productId]) 
+  @@index([productId])
   @@index([transactionId])
 }
 
@@ -182,20 +189,66 @@ model Expense {
 }
 
 model Promo {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
+  code        String  @unique
   name        String
-  type        String   // PERCENTAGE, FIXED
+  description String?
+  type        String
   value       Float
-  minPurchase Float    @default(0)
-  startDate   DateTime
-  endDate     DateTime
-  isActive    Boolean  @default(true)
-  productId   String?
-  storeId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
-  product Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  minPurchase          Float    @default(0)
+  maxDiscount          Float?
+  applicableCategories String[] @default([])
+  applicableProducts   String[] @default([])
+
+  startDate  DateTime
+  endDate    DateTime
+  validDays  String[] @default([])
+  validHours String?
+
+  usageLimit       Int?
+  usageCount       Int  @default(0)
+  perCustomerLimit Int?
+
+  buyQuantity  Int?
+  getQuantity  Int?
+  getProductId String?
+
+  isActive  Boolean  @default(true)
+  productId String?
+  storeId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product?        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store   Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  logs    PromoUsageLog[]
+
+  @@index([code])
+  @@index([storeId, isActive])
+  @@index([startDate, endDate])
+}
+
+model PromoUsageLog {
+  id             String   @id @default(cuid())
+  promoId        String
+  promoCode      String
+  customerPhone  String?
+  transactionId  String?
+  invoiceNumber  String?
+  discountAmount Float
+  cashierId      String
+  storeId        String
+  createdAt      DateTime @default(now())
+
+  promo Promo @relation(fields: [promoId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([promoId])
+  @@index([promoCode])
+  @@index([customerPhone])
+  @@index([createdAt])
+  @@index([storeId])
 }
 
 model Setting {

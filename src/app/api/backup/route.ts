@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     console.log('📦 Creating backup for store:', storeId);
 
-    // Get all data for backup - sesuai dengan schema.prisma
+    // Get all data for backup in parallel
     const [store, products, categories, transactions, expenses, settings, users, promos] = await Promise.all([
       // Store data
       prisma.store.findUnique({ 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         where: { storeId }
       }),
       
-      // Transactions with items
+      // Transactions with items (limit for performance)
       prisma.transaction.findMany({ 
         where: { storeId },
         include: {
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         orderBy: {
           createdAt: 'desc'
         },
-        take: 1000 // Limit untuk prevent timeout
+        take: 1000
       }),
       
       // Expenses
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         where: { storeId }
       }),
 
-      // Users (kasir)
+      // Users (exclude sensitive data)
       prisma.user.findMany({
         where: { storeId },
         select: {
@@ -68,16 +68,22 @@ export async function GET(request: NextRequest) {
           fullName: true,
           photo: true,
           isActive: true,
-          pin: true, // Include PIN untuk kasir
+          pin: true,
           createdAt: true,
           updatedAt: true,
-          // Exclude password untuk keamanan
+          // Password excluded for security
         }
       }),
 
-      // Promos
+      // Promos with all fields
       prisma.promo.findMany({
-        where: { storeId }
+        where: { storeId },
+        include: {
+          logs: {
+            take: 100, // Include recent usage logs
+            orderBy: { createdAt: 'desc' }
+          }
+        }
       })
     ]);
 
@@ -94,7 +100,7 @@ export async function GET(request: NextRequest) {
     console.log('✅ Backup summary:', summary);
 
     const backup = {
-      version: '1.0',
+      version: '2.0', // Updated version for new promo fields
       timestamp: new Date().toISOString(),
       store,
       products,
@@ -127,6 +133,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('🔄 Restoring backup for store:', storeId);
+    console.log('📋 Backup version:', backup.version || '1.0');
 
     let restored = {
       categories: 0,
@@ -137,9 +144,9 @@ export async function POST(request: NextRequest) {
       promos: 0,
     };
 
-    // 1. Restore Categories first (dependencies)
     if (backup.categories && Array.isArray(backup.categories)) {
       console.log('📂 Restoring categories...');
+      
       for (const category of backup.categories) {
         try {
           await prisma.category.upsert({
@@ -164,9 +171,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 2. Restore Products
     if (backup.products && Array.isArray(backup.products)) {
       console.log('📦 Restoring products...');
+      
       for (const product of backup.products) {
         try {
           const { variations, ...productData } = product;
@@ -237,9 +244,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Restore Settings
     if (backup.settings && Array.isArray(backup.settings)) {
       console.log('⚙️ Restoring settings...');
+      
       for (const setting of backup.settings) {
         try {
           await prisma.setting.upsert({
@@ -261,9 +268,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Restore Users (kasir)
     if (backup.users && Array.isArray(backup.users)) {
       console.log('👥 Restoring users...');
+      
       for (const user of backup.users) {
         try {
           await prisma.user.upsert({
@@ -295,33 +302,84 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5. Restore Promos
     if (backup.promos && Array.isArray(backup.promos)) {
       console.log('🎁 Restoring promos...');
+      
       for (const promo of backup.promos) {
         try {
+          // Handle both old and new backup formats
+          const promoData: any = {
+            code: promo.code || `PROMO-${Date.now()}`, // Generate code if missing (old backup)
+            name: promo.name,
+            description: promo.description || null,
+            type: promo.type,
+            value: promo.value,
+            minPurchase: promo.minPurchase || 0,
+            maxDiscount: promo.maxDiscount || null,
+            applicableCategories: promo.applicableCategories || [],
+            applicableProducts: promo.applicableProducts || [],
+            startDate: new Date(promo.startDate),
+            endDate: new Date(promo.endDate),
+            validDays: promo.validDays || [],
+            validHours: promo.validHours || null,
+            usageLimit: promo.usageLimit || null,
+            usageCount: promo.usageCount || 0,
+            perCustomerLimit: promo.perCustomerLimit || null,
+            buyQuantity: promo.buyQuantity || null,
+            getQuantity: promo.getQuantity || null,
+            getProductId: promo.getProductId || null,
+            isActive: promo.isActive,
+            productId: promo.productId || null,
+          };
+
           await prisma.promo.upsert({
             where: { id: promo.id },
             update: {
-              name: promo.name,
-              type: promo.type,
-              value: promo.value,
-              minPurchase: promo.minPurchase,
-              startDate: promo.startDate,
-              endDate: promo.endDate,
-              isActive: promo.isActive,
-              productId: promo.productId,
+              code: promoData.code,
+              name: promoData.name,
+              description: promoData.description,
+              type: promoData.type,
+              value: promoData.value,
+              minPurchase: promoData.minPurchase,
+              maxDiscount: promoData.maxDiscount,
+              applicableCategories: promoData.applicableCategories,
+              applicableProducts: promoData.applicableProducts,
+              startDate: promoData.startDate,
+              endDate: promoData.endDate,
+              validDays: promoData.validDays,
+              validHours: promoData.validHours,
+              usageLimit: promoData.usageLimit,
+              usageCount: promoData.usageCount,
+              perCustomerLimit: promoData.perCustomerLimit,
+              buyQuantity: promoData.buyQuantity,
+              getQuantity: promoData.getQuantity,
+              getProductId: promoData.getProductId,
+              isActive: promoData.isActive,
+              productId: promoData.productId,
             },
             create: {
               id: promo.id,
-              name: promo.name,
-              type: promo.type,
-              value: promo.value,
-              minPurchase: promo.minPurchase,
-              startDate: promo.startDate,
-              endDate: promo.endDate,
-              isActive: promo.isActive,
-              productId: promo.productId,
+              code: promoData.code,
+              name: promoData.name,
+              description: promoData.description,
+              type: promoData.type,
+              value: promoData.value,
+              minPurchase: promoData.minPurchase,
+              maxDiscount: promoData.maxDiscount,
+              applicableCategories: promoData.applicableCategories,
+              applicableProducts: promoData.applicableProducts,
+              startDate: promoData.startDate,
+              endDate: promoData.endDate,
+              validDays: promoData.validDays,
+              validHours: promoData.validHours,
+              usageLimit: promoData.usageLimit,
+              usageCount: promoData.usageCount,
+              perCustomerLimit: promoData.perCustomerLimit,
+              buyQuantity: promoData.buyQuantity,
+              getQuantity: promoData.getQuantity,
+              getProductId: promoData.getProductId,
+              isActive: promoData.isActive,
+              productId: promoData.productId,
               storeId: promo.storeId,
             },
           });
@@ -337,7 +395,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       message: 'Backup restored successfully',
-      restored
+      restored,
+      version: backup.version || '1.0'
     });
   } catch (error) {
     console.error('❌ Error restoring backup:', error);
