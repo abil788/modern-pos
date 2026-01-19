@@ -5,6 +5,8 @@ import { Plus, Edit, Trash2, Search, Package, ChevronLeft, ChevronRight } from '
 import { Product, Category } from '@/types';
 import { formatCurrency } from '@/lib/utils';
 import { ProductForm } from '@/components/owner/ProductForm';
+import { BarcodeGenerator } from '@/components/owner/BarcodeGenerator'; 
+import { QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const ITEMS_PER_PAGE = 5;
@@ -17,6 +19,9 @@ export default function ProductsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
+  const [showBarcodeGenerator, setShowBarcodeGenerator] = useState(false);
+  const [selectedProductForBarcode, setSelectedProductForBarcode] = useState<Product | null>(null);
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -115,6 +120,11 @@ export default function ProductsPage() {
       setCurrentPage(page);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  };
+
+  const handleOpenBarcodeGenerator = (product: Product) => {
+    setSelectedProductForBarcode(product);
+    setShowBarcodeGenerator(true);
   };
 
   // Calculate profit margin
@@ -266,6 +276,14 @@ export default function ProductsPage() {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {/* ✅ NEW: Barcode Generator Button */}
+                          <button
+                            onClick={() => handleOpenBarcodeGenerator(product)}
+                            className="p-2 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900 rounded"
+                            title="Generate Barcode"
+                          >
+                            <QrCode className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => handleEdit(product)}
                             className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded"
@@ -354,6 +372,21 @@ export default function ProductsPage() {
         onClose={handleCloseForm}
         onSuccess={handleFormSuccess}
       />
+
+      {/* Barcode Generator Modal */}
+      {selectedProductForBarcode && (
+        <BarcodeGenerator
+          isOpen={showBarcodeGenerator}
+          onClose={() => {
+            setShowBarcodeGenerator(false);
+            setSelectedProductForBarcode(null);
+          }}
+          productId={selectedProductForBarcode.id}
+          productName={selectedProductForBarcode.name}
+          productSku={selectedProductForBarcode.sku || undefined}
+          productBarcode={selectedProductForBarcode.barcode || undefined}
+        />
+      )}
     </div>
   );
 }

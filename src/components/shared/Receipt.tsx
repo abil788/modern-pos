@@ -1,9 +1,11 @@
+// src/components/shared/Receipt.tsx
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
+import { X, Printer, Download } from 'lucide-react';
 import { Transaction } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
-import { Printer, Download, X } from 'lucide-react';
+import QRCode from 'qrcode';
 
 interface ReceiptProps {
   transaction: Transaction;
@@ -25,19 +27,41 @@ export function Receipt({
   onClose,
 }: ReceiptProps) {
   const receiptRef = useRef<HTMLDivElement>(null);
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const [cashierName, setCashierName] = useState<string>('Loading...');
   const [loading, setLoading] = useState(true);
 
+  // Load cashier name
   useEffect(() => {
     if (isOpen && transaction.cashierId) {
       loadCashierName(transaction.cashierId);
     }
   }, [isOpen, transaction.cashierId]);
 
+  // Generate QR Code
+  useEffect(() => {
+    if (isOpen && qrCanvasRef.current && transaction.invoiceNumber) {
+      QRCode.toCanvas(
+        qrCanvasRef.current,
+        transaction.invoiceNumber,
+        {
+          width: 128,
+          margin: 1,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF',
+          },
+        },
+        (error) => {
+          if (error) console.error('QR Code generation error:', error);
+        }
+      );
+    }
+  }, [isOpen, transaction.invoiceNumber]);
+
   const loadCashierName = async (cashierId: string) => {
     try {
       setLoading(true);
-      // Fallback: fetch from API
       const res = await fetch(`/api/cashiers?id=${cashierId}&storeId=demo-store`);
       if (res.ok) {
         const data = await res.json();
@@ -98,6 +122,7 @@ export function Receipt({
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+          {/* Header - Hidden saat print */}
           <div className="p-4 border-b flex items-center justify-between print:hidden">
             <h2 className="text-xl font-bold">Struk Pembayaran</h2>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded">
@@ -105,7 +130,9 @@ export function Receipt({
             </button>
           </div>
 
+          {/* Receipt Content */}
           <div ref={receiptRef} className="p-6 receipt-content">
+            {/* Store Header */}
             <div className="text-center mb-4">
               <h1 className="text-2xl font-bold">{storeName}</h1>
               {storeAddress && <p className="text-sm text-gray-600">{storeAddress}</p>}
@@ -114,6 +141,7 @@ export function Receipt({
 
             <div className="border-t-2 border-dashed border-gray-300 my-4"></div>
 
+            {/* Transaction Info */}
             <div className="text-sm space-y-1 mb-4">
               <div className="flex justify-between">
                 <span>No. Invoice:</span>
@@ -123,16 +151,27 @@ export function Receipt({
                 <span>Tanggal:</span>
                 <span>{formatDateTime(transaction.createdAt)}</span>
               </div>
+              <div className="flex justify-between">
+                <span>Kasir:</span>
+                <span>{loading ? 'Loading...' : cashierName}</span>
+              </div>
               {transaction.customerName && (
                 <div className="flex justify-between">
                   <span>Pelanggan:</span>
                   <span>{transaction.customerName}</span>
                 </div>
               )}
+              {transaction.customerPhone && (
+                <div className="flex justify-between">
+                  <span>No. HP:</span>
+                  <span>{transaction.customerPhone}</span>
+                </div>
+              )}
             </div>
 
             <div className="border-t-2 border-dashed border-gray-300 my-4"></div>
 
+            {/* Items */}
             <div className="mb-4">
               <table className="w-full text-sm">
                 <thead>
@@ -167,31 +206,38 @@ export function Receipt({
 
             <div className="border-t-2 border-dashed border-gray-300 my-4"></div>
 
+            {/* Totals */}
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
                 <span>{formatCurrency(transaction.subtotal)}</span>
               </div>
+              
               {transaction.tax > 0 && (
                 <div className="flex justify-between text-gray-600">
                   <span>Pajak:</span>
                   <span>{formatCurrency(transaction.tax)}</span>
                 </div>
               )}
-              {transaction.discount > 0 && (
-                <div className="flex justify-between text-red-600">
-                  <span>Diskon:</span>
-                  <span>-{formatCurrency(transaction.discount)}</span>
+
+              {/* ✅ SHOW PROMO INFO */}
+              {transaction.promoDiscount > 0 && transaction.promoCode && (
+                <div className="flex justify-between text-green-600 font-semibold">
+                  <span>Promo ({transaction.promoCode}):</span>
+                  <span>-{formatCurrency(transaction.promoDiscount)}</span>
                 </div>
               )}
+
               <div className="border-t pt-2 flex justify-between text-lg font-bold">
                 <span>TOTAL:</span>
                 <span>{formatCurrency(transaction.total)}</span>
               </div>
+
               <div className="flex justify-between">
                 <span>Bayar ({transaction.paymentMethod}):</span>
                 <span>{formatCurrency(transaction.amountPaid)}</span>
               </div>
+
               {transaction.change > 0 && (
                 <div className="flex justify-between font-semibold">
                   <span>Kembalian:</span>
@@ -200,6 +246,7 @@ export function Receipt({
               )}
             </div>
 
+            {/* Notes */}
             {transaction.notes && (
               <>
                 <div className="border-t-2 border-dashed border-gray-300 my-4"></div>
@@ -212,6 +259,7 @@ export function Receipt({
 
             <div className="border-t-2 border-dashed border-gray-300 my-4"></div>
 
+            {/* Footer */}
             <div className="text-center text-sm">
               {receiptFooter ? (
                 <p className="whitespace-pre-line">{receiptFooter}</p>
@@ -223,15 +271,20 @@ export function Receipt({
               )}
             </div>
 
-            <div className="mt-4 flex justify-center">
-              <div className="w-32 h-32 bg-gray-200 rounded flex items-center justify-center text-xs text-gray-500">
-                QR Code
-                <br />
-                (Optional)
-              </div>
+            {/* ✅ QR CODE SECTION */}
+            <div className="mt-4 flex flex-col items-center">
+              <p className="text-xs text-gray-600 mb-2">Scan untuk verifikasi:</p>
+              <canvas
+                ref={qrCanvasRef}
+                className="border border-gray-300 rounded"
+              />
+              <p className="text-xs text-gray-500 mt-2 font-mono">
+                {transaction.invoiceNumber}
+              </p>
             </div>
           </div>
 
+          {/* Actions */}
           <div className="p-4 border-t flex gap-3 print:hidden">
             <button
               onClick={handlePrint}
@@ -251,6 +304,7 @@ export function Receipt({
         </div>
       </div>
 
+      {/* Print Styles */}
       <style jsx global>{`
         @media print {
           body * {
