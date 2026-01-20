@@ -129,6 +129,8 @@ export async function POST(request: NextRequest) {
       promoCode,        
       promoDiscount,
       cashierId,
+      paymentChannel,
+      paymentReference,
     } = body;
 
     console.log(`[TRANSACTIONS API] Processing transaction | Store: ${storeId} | Cashier: ${cashierId}`);

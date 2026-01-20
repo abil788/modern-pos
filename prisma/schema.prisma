@@ -35,6 +35,8 @@ model Store {
   activityLogs   ActivityLog[]
   promos         Promo[]
   promoUsageLogs PromoUsageLog[]
+  cashDrawers    CashDrawer[]
+  dailyClosings  DailyClosing[]
 }
 
 model User {
@@ -57,6 +59,8 @@ model User {
   store        Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   activityLogs ActivityLog[]
+  cashDrawers   CashDrawer[]
+  dailyClosings DailyClosing[]
 
   @@index([storeId, isActive])
   @@index([role])
@@ -128,6 +132,8 @@ model Transaction {
   discount      Float   @default(0)
   total         Float
   paymentMethod String
+  paymentChannel String? 
+  paymentReference String? 
   amountPaid    Float
   change        Float   @default(0)
   customerName  String?
@@ -140,18 +146,27 @@ model Transaction {
   cashierId String
   storeId   String
   isSynced  Boolean  @default(false)
+  
+  isReconciled     Boolean   @default(false)
+  reconciledAt     DateTime?
+  reconciledBy     String?
+  dailyClosingId   String?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  store   Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  cashier User              @relation(fields: [cashierId], references: [id])
-  items   TransactionItem[]
+  store         Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  cashier       User             @relation(fields: [cashierId], references: [id])
+  items         TransactionItem[]
+  dailyClosing  DailyClosing?    @relation(fields: [dailyClosingId], references: [id])
 
   @@index([storeId, createdAt])
   @@index([invoiceNumber])
   @@index([createdAt])
   @@index([cashierId])
   @@index([promoCode])
+  @@index([paymentMethod, paymentChannel]) // NEW
+  @@index([dailyClosingId]) // NEW
 }
 
 model TransactionItem {
@@ -170,6 +185,63 @@ model TransactionItem {
 
   @@index([productId])
   @@index([transactionId])
+}
+
+model CashDrawer {
+  id              String   @id @default(cuid())
+  storeId         String
+  cashierId       String
+  openingBalance  Float    @default(0)
+  closingBalance  Float?
+  expectedBalance Float?
+  actualBalance   Float?
+  difference      Float?
+  notes           String?
+  openedAt        DateTime @default(now())
+  closedAt        DateTime?
+  status          String   @default("OPEN") // OPEN, CLOSED
+  
+  store   Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  cashier User  @relation(fields: [cashierId], references: [id])
+  
+  @@index([storeId, status])
+  @@index([cashierId])
+  @@index([openedAt])
+}
+
+model DailyClosing {
+  id                String   @id @default(cuid())
+  storeId           String
+  cashierId         String
+  closingDate       DateTime
+  
+  // Summary
+  totalTransactions Int
+  totalRevenue      Float
+  
+  // Payment breakdown
+  cashTotal         Float
+  transferTotal     Float
+  cardTotal         Float
+  qrisTotal         Float
+  
+  // Cash reconciliation
+  expectedCash      Float
+  actualCash        Float
+  cashDifference    Float
+  
+  // Detailed breakdown JSON
+  paymentBreakdown  Json     // Detailed per channel
+  
+  notes             String?
+  closedAt          DateTime @default(now())
+  
+  store        Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  cashier      User          @relation(fields: [cashierId], references: [id])
+  transactions Transaction[]
+  
+  @@index([storeId, closingDate])
+  @@index([cashierId])
 }
 
 model Expense {
@@ -278,3 +350,4 @@ model ActivityLog {
   @@index([createdAt])
   @@index([userId])
 }
+

@@ -9,6 +9,7 @@ import { Product, Category, Transaction } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { BarcodeScanner } from "@/components/kasir/BarcodeScanner";
 import { Receipt } from "@/components/shared/Receipt";
+import { EnhancedCheckout } from '@/components/kasir/EnhancedCheckout';
 import { NotificationBanner } from "@/components/shared/NotificationBanner";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import toast, { Toaster } from "react-hot-toast";
@@ -852,210 +853,65 @@ export default function KasirPage() {
         onScan={handleScanBarcode}
       />
 
-      {showCheckout && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b dark:border-gray-700 flex items-center justify-between">
-              <h2 className="text-2xl font-bold dark:text-white">Checkout</h2>
-              <button
-                onClick={() => setShowCheckout(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-              >
-                ✕
-              </button>
-            </div>
+      <EnhancedCheckout
+        isOpen={showCheckout}
+        onClose={() => setShowCheckout(false)}
+        subtotal={subtotal}
+        tax={tax}
+        total={total}
+        items={items}
+        currentCashier={currentCashier}
+        onComplete={async (paymentData) => {
+          // Create transaction with payment channel data
+          const transactionData = {
+            items: items.map((item) => ({
+              productId: item.productId,
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              subtotal: item.subtotal,
+              discount: item.discount || 0,
+            })),
+            subtotal,
+            tax,
+            discount: promoDiscount,
+            total,
+            // NEW: Payment channel fields
+            paymentMethod: paymentData.paymentMethod,
+            paymentChannel: paymentData.paymentChannel,
+            paymentReference: paymentData.paymentReference,
+            amountPaid: paymentData.amountPaid,
+            change: paymentData.change,
+            customerName: paymentData.customerName,
+            customerPhone: paymentData.customerPhone,
+            notes: paymentData.notes,
+            promoCode: appliedPromo ? appliedPromo.code : undefined,
+            promoDiscount,
+            storeId: store?.id || 'demo-store',
+            cashierId: currentCashier.id,
+          };
 
-            <div className="p-6 space-y-6">
-              <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
-                <div className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span className="text-sm text-blue-800 dark:text-blue-200">
-                    Kasir: <strong>{currentCashier.fullName}</strong>
-                  </span>
-                </div>
-              </div>
+          const res = await fetch('/api/transactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(transactionData),
+          });
 
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                <h3 className="font-semibold mb-3 dark:text-white">
-                  Ringkasan Pesanan
-                </h3>
-                <div className="space-y-2 text-sm">
-                  {items.map((item) => (
-                    <div
-                      key={item.productId}
-                      className="flex justify-between dark:text-gray-300"
-                    >
-                      <span>
-                        {item.name} x{item.quantity}
-                      </span>
-                      <span>{formatCurrency(item.subtotal)}</span>
-                    </div>
-                  ))}
-                  <div className="border-t dark:border-gray-600 pt-2 mt-2">
-                    <div className="flex justify-between dark:text-gray-300">
-                      <span>Subtotal:</span>
-                      <span>{formatCurrency(subtotal)}</span>
-                    </div>
-                    {tax > 0 && (
-                      <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                        <span>Pajak ({taxRate}%):</span>
-                        <span>{formatCurrency(tax)}</span>
-                      </div>
-                    )}
-                    {/* 🆕 SHOW PROMO IN CHECKOUT */}
-                    {promoDiscount > 0 && appliedPromo && (
-                      <div className="flex justify-between text-green-600 dark:text-green-400 font-semibold">
-                        <span>Promo ({appliedPromo.code}):</span>
-                        <span>-{formatCurrency(promoDiscount)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t dark:border-gray-600 text-blue-600 dark:text-blue-400">
-                      <span>Total:</span>
-                      <span>{formatCurrency(total)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          if (!res.ok) throw new Error('Failed to create transaction');
 
-              <div>
-                <label className="block font-semibold mb-2 dark:text-white">
-                  Metode Pembayaran
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {(["CASH", "CARD", "QRIS", "TRANSFER"] as const).map(
-                    (method) => (
-                      <button
-                        key={method}
-                        type="button"
-                        onClick={() => setPaymentMethod(method)}
-                        className={`p-4 border-2 rounded-lg transition-colors ${
-                          paymentMethod === method
-                            ? "border-blue-600 bg-blue-50 dark:bg-blue-900 dark:text-white"
-                            : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:text-white"
-                        }`}
-                      >
-                        <span className="font-semibold">{method}</span>
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-
-              {paymentMethod === "CASH" && (
-                <div>
-                  <label className="block font-semibold mb-2 dark:text-white">
-                    Jumlah Bayar
-                  </label>
-
-                  <div className="grid grid-cols-3 gap-2 mb-3">
-                    {quickCashAmounts.map((amount) => (
-                      <button
-                        key={amount}
-                        type="button"
-                        onClick={() => handleQuickCash(amount)}
-                        className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-semibold dark:text-white"
-                      >
-                        {formatCurrency(amount)}
-                      </button>
-                    ))}
-                  </div>
-
-                  <input
-                    type="number"
-                    value={amountPaid}
-                    onChange={(e) => setAmountPaid(e.target.value)}
-                    placeholder="0"
-                    className="w-full p-3 border dark:border-gray-600 rounded-lg text-lg font-semibold dark:bg-gray-700 dark:text-white"
-                    autoFocus
-                  />
-                  {change >= 0 && amountPaid && (
-                    <div className="mt-2 p-3 bg-green-50 dark:bg-green-900 rounded-lg">
-                      <div className="flex justify-between text-green-800 dark:text-green-200">
-                        <span>Kembalian:</span>
-                        <span className="font-bold text-xl">
-                          {formatCurrency(change)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {paymentMethod !== "CASH" && (
-                <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
-                  <p className="text-sm text-blue-800 dark:text-blue-200">
-                    ✓ Pembayaran {paymentMethod}:{" "}
-                    <strong>{formatCurrency(total)}</strong>
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-semibold mb-1 dark:text-white">
-                  Nama Pelanggan (Opsional)
-                </label>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Nama pelanggan"
-                  className="w-full p-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-1 dark:text-white">
-                  No. HP Pelanggan (Opsional)
-                </label>
-                <input
-                  type="tel"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="08123456789"
-                  className="w-full p-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Diperlukan untuk promo dengan limit per customer
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold mb-1 dark:text-white">
-                  Catatan
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Catatan tambahan..."
-                  className="w-full p-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                  rows={2}
-                />
-              </div>
-            </div>
-
-            <div className="p-6 border-t dark:border-gray-700 flex gap-3">
-              <button
-                type="button"
-                onClick={() => setShowCheckout(false)}
-                className="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-semibold"
-              >
-                Batal
-              </button>
-              <button
-                type="button"
-                onClick={handleCheckout}
-                disabled={
-                  loading ||
-                  (paymentMethod === "CASH" && (!amountPaid || paid < total))
-                }
-                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
-              >
-                {loading ? "Memproses..." : "Bayar Sekarang"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          const transaction = await res.json();
+          toast.success('Transaksi berhasil!');
+          
+          setCompletedTransaction(transaction);
+          setShowCheckout(false);
+          setShowReceipt(true);
+          clearCart();
+          setPromoCode('');
+          setAppliedPromo(null);
+          setPromoDiscount(0);
+          loadProducts();
+        }}
+      />
 
       {completedTransaction && (
         <Receipt

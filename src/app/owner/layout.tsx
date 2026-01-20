@@ -8,7 +8,8 @@ import {
   LayoutDashboard, Package, Receipt, DollarSign, 
   Settings, LogOut, ChevronLeft, ChevronRight,
   Tag, History, Lock, Eye, EyeOff, Users,
-  Gift
+  Gift,
+  Clock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -22,6 +23,8 @@ const navigation = [
   { name: 'Pengeluaran', href: '/owner/expenses', icon: DollarSign },
   { name: 'History', href: '/owner/history', icon: History },
   { name: 'Pengaturan', href: '/owner/settings', icon: Settings },
+  { name: 'Rekonsiliasi', href: '/owner/reconciliation', icon: Clock },
+  { name: 'Tutup Harian', href: '/owner/daily-closing', icon: Lock },
 ];
 
 const OWNER_SESSION_KEY = 'owner_session';
