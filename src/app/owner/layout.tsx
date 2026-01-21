@@ -22,9 +22,8 @@ const navigation = [
   { name: 'Laporan', href: '/owner/reports', icon: Receipt },
   { name: 'Pengeluaran', href: '/owner/expenses', icon: DollarSign },
   { name: 'History', href: '/owner/history', icon: History },
-  { name: 'Pengaturan', href: '/owner/settings', icon: Settings },
   { name: 'Rekonsiliasi', href: '/owner/reconciliation', icon: Clock },
-  { name: 'Tutup Harian', href: '/owner/daily-closing', icon: Lock },
+  { name: 'Pengaturan', href: '/owner/settings', icon: Settings }
 ];
 
 const OWNER_SESSION_KEY = 'owner_session';

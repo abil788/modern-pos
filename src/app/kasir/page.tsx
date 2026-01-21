@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Scan, ShoppingCart, Trash2, User, LogOut, Tag, X } from "lucide-react";
+import { Search, Scan, ShoppingCart, Trash2, User, Package } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cartStore";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -13,7 +13,6 @@ import { EnhancedCheckout } from '@/components/kasir/EnhancedCheckout';
 import { NotificationBanner } from "@/components/shared/NotificationBanner";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import toast, { Toaster } from "react-hot-toast";
-import { Package } from "lucide-react";
 
 export default function KasirPage() {
   const router = useRouter();
@@ -25,19 +24,6 @@ export default function KasirPage() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [completedTransaction, setCompletedTransaction] = useState<Transaction | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD" | "QRIS" | "TRANSFER">("CASH");
-  const [amountPaid, setAmountPaid] = useState("");
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [notes, setNotes] = useState("");
-
-  // 🆕 PROMO STATE
-  const [promoCode, setPromoCode] = useState("");
-  const [appliedPromo, setAppliedPromo] = useState<any>(null);
-  const [promoDiscount, setPromoDiscount] = useState(0);
-  const [validatingPromo, setValidatingPromo] = useState(false);
 
   const [currentCashier, setCurrentCashier] = useState<{
     id: string;
@@ -184,14 +170,6 @@ export default function KasirPage() {
       maxStock: product.stock,
     });
     toast.success(`${product.name} ditambahkan`);
-    
-    // 🆕 Clear promo when cart changes
-    if (appliedPromo) {
-      setAppliedPromo(null);
-      setPromoDiscount(0);
-      setPromoCode("");
-      toast("Promo dibatalkan karena keranjang berubah");
-    }
   };
 
   const handleScanBarcode = async (barcode: string) => {
@@ -250,14 +228,6 @@ export default function KasirPage() {
     updateQuantity(productId, newQuantity);
     setEditingQuantity(null);
     toast.success("Quantity diupdate");
-    
-    // 🆕 Clear promo when quantity changes
-    if (appliedPromo) {
-      setAppliedPromo(null);
-      setPromoDiscount(0);
-      setPromoCode("");
-      toast("Promo dibatalkan karena keranjang berubah");
-    }
   };
 
   const handleQuantityInputBlur = (productId: string, maxStock: number) => {
@@ -268,185 +238,10 @@ export default function KasirPage() {
     }
   };
 
-  // 🆕🆕🆕 APPLY PROMO FUNCTION
-  const handleApplyPromo = async () => {
-    if (!promoCode.trim()) {
-      toast.error("Masukkan kode promo");
-      return;
-    }
-
-    if (items.length === 0) {
-      toast.error("Keranjang masih kosong");
-      return;
-    }
-
-    try {
-      setValidatingPromo(true);
-      
-      const subtotal = getSubtotal();
-      
-      const res = await fetch('/api/promos/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: promoCode.toUpperCase(),
-          storeId: store?.id || 'demo-store',
-          subtotal,
-          items: items.map(item => {
-            const product = products.find(p => p.id === item.productId);
-            return {
-              productId: item.productId,
-              categoryId: product?.categoryId,
-              quantity: item.quantity,
-              price: item.price,
-            };
-          }),
-          customerPhone: customerPhone || undefined,
-        }),
-      });
-
-      const result = await res.json();
-
-      if (result.valid) {
-        setAppliedPromo(result.promo);
-        setPromoDiscount(result.discount);
-        toast.success(result.message, { duration: 4000 });
-      } else {
-        setAppliedPromo(null);
-        setPromoDiscount(0);
-        toast.error(result.error);
-      }
-    } catch (error) {
-      console.error('Promo validation error:', error);
-      toast.error('Gagal validasi promo');
-      setAppliedPromo(null);
-      setPromoDiscount(0);
-    } finally {
-      setValidatingPromo(false);
-    }
-  };
-
-  // 🆕 REMOVE PROMO
-  const handleRemovePromo = () => {
-    setAppliedPromo(null);
-    setPromoDiscount(0);
-    setPromoCode("");
-    toast.success("Promo dihapus");
-  };
-
-  const handleCheckout = async () => {
-    if (items.length === 0) {
-      toast.error("Keranjang kosong!");
-      return;
-    }
-
-    if (!currentCashier || !currentCashier.id) {
-      toast.error("Session expired. Silakan login kembali.");
-      router.push("/login");
-      return;
-    }
-
-    const subtotal = getSubtotal();
-    const taxRate = store?.taxRate || 0;
-    const tax = taxRate > 0 ? (subtotal * taxRate) / 100 : 0;
-    const total = subtotal + tax - promoDiscount; // 🆕 Kurangi promo discount
-    const paid = parseFloat(amountPaid) || 0;
-    const change = paid - total;
-
-    if (paymentMethod === "CASH" && paid < total) {
-      toast.error("Jumlah bayar kurang!");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const transactionData = {
-        items: items.map((item) => ({
-          productId: item.productId,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          subtotal: item.subtotal,
-          discount: item.discount || 0,
-        })),
-        subtotal,
-        tax,
-        discount: promoDiscount, // 🆕 Include promo discount
-        total,
-        paymentMethod,
-        amountPaid: paid,
-        change: Math.max(0, change),
-        customerName: customerName || undefined,
-        customerPhone: customerPhone || undefined,
-        notes: notes || undefined,
-        promoCode: appliedPromo ? appliedPromo.code : undefined, // 🆕 NEW
-        promoDiscount, // 🆕 NEW
-        storeId: store?.id || "demo-store",
-        cashierId: currentCashier.id,
-      };
-
-      console.log("🔄 Creating transaction with promo:", {
-        promoCode: transactionData.promoCode,
-        promoDiscount: transactionData.promoDiscount,
-      });
-
-      const res = await fetch("/api/transactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(transactionData),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to create transaction");
-      }
-
-      const transaction = await res.json();
-
-      console.log("✅ Transaction created:", {
-        invoiceNumber: transaction.invoiceNumber,
-        promoApplied: !!transaction.promoCode,
-      });
-
-      toast.success("Transaksi berhasil!");
-
-      setCompletedTransaction(transaction);
-      setShowCheckout(false);
-      setShowReceipt(true);
-      clearCart();
-
-      // Reset form
-      setAmountPaid("");
-      setCustomerName("");
-      setCustomerPhone("");
-      setNotes("");
-      setPaymentMethod("CASH");
-      setPromoCode("");
-      setAppliedPromo(null);
-      setPromoDiscount(0);
-
-      loadProducts();
-    } catch (error: any) {
-      console.error("❌ Transaction error:", error);
-      toast.error(error.message || "Gagal memproses transaksi");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const quickCashAmounts = [10000, 20000, 50000, 100000, 200000, 500000];
-
-  const handleQuickCash = (amount: number) => {
-    setAmountPaid(amount.toString());
-  };
-
   const subtotal = getSubtotal();
   const taxRate = store?.taxRate || 0;
   const tax = taxRate > 0 ? (subtotal * taxRate) / 100 : 0;
-  const total = subtotal + tax - promoDiscount; // 🆕 Include promo discount
-  const paid = parseFloat(amountPaid) || 0;
-  const change = paid - total;
+  const total = subtotal + tax;
 
   if (!currentCashier) {
     return (
@@ -641,16 +436,7 @@ export default function KasirPage() {
                           {item.name}
                         </h4>
                         <button
-                          onClick={() => {
-                            removeItem(item.productId);
-                            // Clear promo when item removed
-                            if (appliedPromo) {
-                              setAppliedPromo(null);
-                              setPromoDiscount(0);
-                              setPromoCode("");
-                              toast("Promo dibatalkan");
-                            }
-                          }}
+                          onClick={() => removeItem(item.productId)}
                           className="text-red-600 hover:text-red-700 ml-2 p-1 rounded hover:bg-red-50 dark:hover:bg-red-900"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -660,15 +446,9 @@ export default function KasirPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => {
-                              updateQuantity(item.productId, item.quantity - 1);
-                              if (appliedPromo) {
-                                setAppliedPromo(null);
-                                setPromoDiscount(0);
-                                setPromoCode("");
-                                toast("Promo dibatalkan");
-                              }
-                            }}
+                            onClick={() =>
+                              updateQuantity(item.productId, item.quantity - 1)
+                            }
                             className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center justify-center font-bold"
                           >
                             -
@@ -722,12 +502,6 @@ export default function KasirPage() {
                                 return;
                               }
                               updateQuantity(item.productId, item.quantity + 1);
-                              if (appliedPromo) {
-                                setAppliedPromo(null);
-                                setPromoDiscount(0);
-                                setPromoCode("");
-                                toast("Promo dibatalkan");
-                              }
                             }}
                             className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center justify-center font-bold"
                           >
@@ -755,61 +529,6 @@ export default function KasirPage() {
             )}
           </div>
 
-          {/* 🆕🆕🆕 PROMO SECTION */}
-          {items.length > 0 && (
-            <div className="border-t dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-700/50">
-              <label className="block text-sm font-semibold mb-2 dark:text-white flex items-center gap-2">
-                <Tag className="w-4 h-4" />
-                Kode Promo
-              </label>
-              
-              {appliedPromo ? (
-                <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-lg p-3">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-green-800 dark:text-green-200">
-                        ✓ {appliedPromo.name}
-                      </p>
-                      <p className="text-xs text-green-700 dark:text-green-300">
-                        Kode: {appliedPromo.code}
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleRemovePromo}
-                      className="p-1 hover:bg-green-100 dark:hover:bg-green-800 rounded"
-                    >
-                      <X className="w-4 h-4 text-green-700 dark:text-green-300" />
-                    </button>
-                  </div>
-                  <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                    Hemat: {formatCurrency(promoDiscount)}
-                  </p>
-                </div>
-              ) : (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') handleApplyPromo();
-                    }}
-                    placeholder="Masukkan kode promo"
-                    className="flex-1 p-2 border dark:border-gray-600 rounded-lg uppercase dark:bg-gray-700 dark:text-white"
-                    disabled={validatingPromo}
-                  />
-                  <button
-                    onClick={handleApplyPromo}
-                    disabled={validatingPromo || !promoCode.trim()}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
-                  >
-                    {validatingPromo ? '...' : 'Pakai'}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="border-t dark:border-gray-700 p-4">
             <div className="space-y-2 mb-4">
               <div className="flex justify-between">
@@ -822,13 +541,6 @@ export default function KasirPage() {
                 <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
                   <span>Pajak ({taxRate}%):</span>
                   <span>{formatCurrency(tax)}</span>
-                </div>
-              )}
-              {/* 🆕 PROMO DISCOUNT LINE */}
-              {promoDiscount > 0 && (
-                <div className="flex justify-between text-sm text-green-600 dark:text-green-400 font-semibold">
-                  <span>Diskon Promo:</span>
-                  <span>-{formatCurrency(promoDiscount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-2xl font-bold text-blue-600 dark:text-blue-400 pt-2 border-t dark:border-gray-600">
@@ -861,8 +573,9 @@ export default function KasirPage() {
         total={total}
         items={items}
         currentCashier={currentCashier}
+        products={products}
+        storeId={store?.id || 'demo-store'}
         onComplete={async (paymentData) => {
-          // Create transaction with payment channel data
           const transactionData = {
             items: items.map((item) => ({
               productId: item.productId,
@@ -874,19 +587,17 @@ export default function KasirPage() {
             })),
             subtotal,
             tax,
-            discount: promoDiscount,
-            total,
-            // NEW: Payment channel fields
+            discount: paymentData.promoDiscount || 0,
+            total: total - (paymentData.promoDiscount || 0),
             paymentMethod: paymentData.paymentMethod,
             paymentChannel: paymentData.paymentChannel,
-            paymentReference: paymentData.paymentReference,
             amountPaid: paymentData.amountPaid,
             change: paymentData.change,
             customerName: paymentData.customerName,
             customerPhone: paymentData.customerPhone,
             notes: paymentData.notes,
-            promoCode: appliedPromo ? appliedPromo.code : undefined,
-            promoDiscount,
+            promoCode: paymentData.promoCode,
+            promoDiscount: paymentData.promoDiscount || 0,
             storeId: store?.id || 'demo-store',
             cashierId: currentCashier.id,
           };
@@ -906,9 +617,6 @@ export default function KasirPage() {
           setShowCheckout(false);
           setShowReceipt(true);
           clearCart();
-          setPromoCode('');
-          setAppliedPromo(null);
-          setPromoDiscount(0);
           loadProducts();
         }}
       />

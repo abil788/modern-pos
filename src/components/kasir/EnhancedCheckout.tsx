@@ -1,8 +1,8 @@
 // src/components/kasir/EnhancedCheckout.tsx
 'use client';
 
-import { useState } from 'react';
-import { X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Tag } from 'lucide-react';
 import { PAYMENT_METHODS } from '@/lib/payment-config';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -16,6 +16,8 @@ interface EnhancedCheckoutProps {
   items: any[];
   onComplete: (paymentData: any) => void;
   currentCashier: any;
+  products: any[];
+  storeId: string;
 }
 
 export function EnhancedCheckout({
@@ -26,60 +28,150 @@ export function EnhancedCheckout({
   total,
   items,
   onComplete,
-  currentCashier
+  currentCashier,
+  products,
+  storeId
 }: EnhancedCheckoutProps) {
   const [selectedMethod, setSelectedMethod] = useState<string>('CASH');
   const [selectedChannel, setSelectedChannel] = useState<string>('CASH_IDR');
-  const [paymentReference, setPaymentReference] = useState('');
   const [amountPaid, setAmountPaid] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [notes, setNotes] = useState('');
+  
+  // Promo state
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [validatingPromo, setValidatingPromo] = useState(false);
+
+  // 🆕 Reset form when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      // Reset all form fields when opening
+      setSelectedMethod('CASH');
+      setSelectedChannel('CASH_IDR');
+      setAmountPaid('');
+      setCustomerName('');
+      setCustomerPhone('');
+      setNotes('');
+      setPromoCode('');
+      setAppliedPromo(null);
+      setPromoDiscount(0);
+      setValidatingPromo(false);
+    }
+  }, [isOpen]);
 
   const methodConfig = PAYMENT_METHODS[selectedMethod];
-  const channelConfig = methodConfig?.channels.find(c => c.id === selectedChannel);
   
+  // Calculate with promo discount
+  const finalTotal = total - promoDiscount;
   const paid = parseFloat(amountPaid) || 0;
-  const change = paid - total;
+  const change = paid - finalTotal;
 
   const handleMethodChange = (methodId: string) => {
     setSelectedMethod(methodId);
     setSelectedChannel(PAYMENT_METHODS[methodId].channels[0].id);
-    setPaymentReference('');
     
     // Auto-fill amount for non-cash
     if (methodId !== 'CASH') {
+      setAmountPaid(finalTotal.toString());
+    } else {
+      setAmountPaid('');
+    }
+  };
+
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) {
+      toast.error('Masukkan kode promo');
+      return;
+    }
+
+    try {
+      setValidatingPromo(true);
+      
+      const res = await fetch('/api/promos/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: promoCode.toUpperCase(),
+          storeId,
+          subtotal,
+          items: items.map(item => {
+            const product = products.find(p => p.id === item.productId);
+            return {
+              productId: item.productId,
+              categoryId: product?.categoryId,
+              quantity: item.quantity,
+              price: item.price,
+            };
+          }),
+          customerPhone: customerPhone || undefined,
+        }),
+      });
+
+      const result = await res.json();
+
+      if (result.valid) {
+        setAppliedPromo(result.promo);
+        setPromoDiscount(result.discount);
+        toast.success(result.message, { duration: 4000 });
+        
+        // Update amount if non-cash
+        if (selectedMethod !== 'CASH') {
+          setAmountPaid((total - result.discount).toString());
+        }
+      } else {
+        setAppliedPromo(null);
+        setPromoDiscount(0);
+        toast.error(result.error);
+      }
+    } catch (error) {
+      console.error('Promo validation error:', error);
+      toast.error('Gagal validasi promo');
+      setAppliedPromo(null);
+      setPromoDiscount(0);
+    } finally {
+      setValidatingPromo(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoDiscount(0);
+    setPromoCode('');
+    
+    // Update amount if non-cash
+    if (selectedMethod !== 'CASH') {
       setAmountPaid(total.toString());
     }
+    
+    toast.success('Promo dihapus');
   };
 
   const handleSubmit = () => {
     // Validation
-    if (selectedMethod === 'CASH' && paid < total) {
+    if (selectedMethod === 'CASH' && paid < finalTotal) {
       toast.error('Jumlah bayar kurang!');
-      return;
-    }
-
-    if (channelConfig?.requiresReference && !paymentReference.trim()) {
-      toast.error('Nomor referensi harus diisi!');
       return;
     }
 
     const paymentData = {
       paymentMethod: selectedMethod,
       paymentChannel: selectedChannel,
-      paymentReference: paymentReference || undefined,
       amountPaid: paid,
       change: Math.max(0, change),
       customerName: customerName || undefined,
       customerPhone: customerPhone || undefined,
-      notes: notes || undefined
+      notes: notes || undefined,
+      promoCode: appliedPromo ? appliedPromo.code : undefined,
+      promoDiscount
     };
 
     onComplete(paymentData);
   };
 
-  const quickCashAmounts = [50000, 100000, 200000, 500000];
+  const quickCashAmounts = [20000, 50000, 100000, 150000];
 
   if (!isOpen) return null;
 
@@ -115,12 +207,71 @@ export function EnhancedCheckout({
                     <span>{formatCurrency(tax)}</span>
                   </div>
                 )}
+                {promoDiscount > 0 && (
+                  <div className="flex justify-between text-green-600 dark:text-green-400 font-semibold">
+                    <span>Diskon Promo:</span>
+                    <span>-{formatCurrency(promoDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t dark:border-gray-600 text-blue-600 dark:text-blue-400">
                   <span>Total:</span>
-                  <span>{formatCurrency(total)}</span>
+                  <span>{formatCurrency(finalTotal)}</span>
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Promo Code Section */}
+          <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <label className="block text-sm font-semibold mb-3 dark:text-white flex items-center gap-2">
+              <Tag className="w-4 h-4" />
+              Kode Promo
+            </label>
+            
+            {appliedPromo ? (
+              <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-500 rounded-lg p-3">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-green-800 dark:text-green-200">
+                      ✓ {appliedPromo.name}
+                    </p>
+                    <p className="text-xs text-green-700 dark:text-green-300">
+                      Kode: {appliedPromo.code}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleRemovePromo}
+                    className="p-1 hover:bg-green-100 dark:hover:bg-green-800 rounded"
+                  >
+                    <X className="w-4 h-4 text-green-700 dark:text-green-300" />
+                  </button>
+                </div>
+                <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                  Hemat: {formatCurrency(promoDiscount)}
+                </p>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') handleApplyPromo();
+                  }}
+                  placeholder="Masukkan kode promo"
+                  className="flex-1 p-2 border dark:border-gray-600 rounded-lg uppercase dark:bg-gray-700 dark:text-white"
+                  disabled={validatingPromo}
+                />
+                <button
+                  onClick={handleApplyPromo}
+                  disabled={validatingPromo || !promoCode.trim()}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
+                >
+                  {validatingPromo ? '...' : 'Pakai'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Payment Method Selection */}
@@ -154,8 +305,8 @@ export function EnhancedCheckout({
             </div>
           </div>
 
-          {/* Payment Channel Selection */}
-          {methodConfig && (
+          {/* Payment Channel Selection - Only show if multiple channels */}
+          {methodConfig && methodConfig.channels.length > 1 && (
             <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4">
               <label className="block font-semibold mb-3 dark:text-white">
                 Pilih Channel - {methodConfig.name}
@@ -178,26 +329,6 @@ export function EnhancedCheckout({
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Reference Number for non-cash */}
-          {channelConfig?.requiresReference && (
-            <div>
-              <label className="block font-semibold mb-2 dark:text-white">
-                Nomor Referensi / Approval Code <span className="text-red-600">*</span>
-              </label>
-              <input
-                type="text"
-                value={paymentReference}
-                onChange={(e) => setPaymentReference(e.target.value)}
-                placeholder="Contoh: 1234567890 atau APPROV123"
-                className="w-full p-3 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white font-mono"
-                required
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Masukkan nomor referensi transaksi dari {channelConfig.name}
-              </p>
             </div>
           )}
 
@@ -245,7 +376,7 @@ export function EnhancedCheckout({
           {selectedMethod !== 'CASH' && (
             <div className="bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
               <p className="text-sm text-blue-800 dark:text-blue-200">
-                ✓ Pembayaran {channelConfig?.name}: <strong>{formatCurrency(total)}</strong>
+                ✓ Pembayaran {methodConfig.name}: <strong>{formatCurrency(finalTotal)}</strong>
               </p>
             </div>
           )}
@@ -304,10 +435,7 @@ export function EnhancedCheckout({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={
-              (selectedMethod === 'CASH' && paid < total) ||
-              (channelConfig?.requiresReference && !paymentReference.trim())
-            }
+            disabled={selectedMethod === 'CASH' && paid < finalTotal}
             className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             Bayar Sekarang

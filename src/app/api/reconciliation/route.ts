@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const storeId = searchParams.get('storeId');
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const summaryOnly = searchParams.get('summary') === 'true';
 
     if (!storeId) {
       return NextResponse.json({ error: 'Store ID required' }, { status: 400 });
@@ -62,6 +63,19 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // If summaryOnly, don't send transactions detail
+    if (summaryOnly) {
+      return NextResponse.json({
+        date,
+        totalRevenue,
+        totalTransactions,
+        byMethod,
+        paymentSummary
+        // transactions excluded to reduce payload
+      });
+    }
+
+    // Full response with transactions (for export)
     return NextResponse.json({
       date,
       totalRevenue,
