@@ -129,11 +129,12 @@ export async function POST(request: NextRequest) {
       promoCode,        
       promoDiscount,
       cashierId,
-      paymentChannel,
-      paymentReference,
+      paymentChannel,      // ✅ Received from body
+      paymentReference,    // ✅ Received from body
     } = body;
 
     console.log(`[TRANSACTIONS API] Processing transaction | Store: ${storeId} | Cashier: ${cashierId}`);
+    console.log(`[TRANSACTIONS API] Payment: ${paymentMethod} | Channel: ${paymentChannel || 'default'}`);
     if (promoCode) {
       console.log(`[TRANSACTIONS API] Promo applied: ${promoCode} | Discount: ${promoDiscount}`);
     }
@@ -218,6 +219,8 @@ export async function POST(request: NextRequest) {
         discount: parseFloat(discount?.toString() || '0'),
         total: parseFloat(total.toString()),
         paymentMethod,
+        paymentChannel: paymentChannel || null,        // ✅ NOW SAVED!
+        paymentReference: paymentReference || null,    // ✅ NOW SAVED!
         amountPaid: parseFloat(amountPaid.toString()),
         change: parseFloat(change?.toString() || '0'),
         customerName: customerName || null,
@@ -251,7 +254,7 @@ export async function POST(request: NextRequest) {
       },
     });
     
-    console.log(`[TRANSACTIONS API] Transaction created in ${Date.now() - transactionStartTime}ms | ${transaction.id}`);
+    console.log(`[TRANSACTIONS API] Transaction created in ${Date.now() - transactionStartTime}ms | ${transaction.id} | Channel: ${transaction.paymentChannel}`);
 
     if (validatedPromo && promoDiscount > 0) {
       const promoLogStartTime = Date.now();

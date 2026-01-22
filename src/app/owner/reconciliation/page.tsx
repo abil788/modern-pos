@@ -2,31 +2,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, Calendar, Wallet, Building2, CreditCard, Smartphone, CheckCircle, AlertCircle, FileSpreadsheet } from 'lucide-react';
+import { Calendar, Wallet, Building2, CreditCard, Smartphone, FileSpreadsheet, TrendingUp, DollarSign, AlertCircle } from 'lucide-react';
 import { PAYMENT_METHODS, calculatePaymentSummary } from '@/lib/payment-config';
-import { formatCurrency, formatDateTime } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
-
-const getIconComponent = (methodId: string) => {
-  const icons: Record<string, any> = {
-    CASH: Wallet,
-    TRANSFER: Building2,
-    CARD: CreditCard,
-    QRIS: Smartphone
-  };
-  return icons[methodId] || Wallet;
-};
 
 export default function ReconciliationPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  
-  // Cash verification state
-  const [showCashVerification, setShowCashVerification] = useState(false);
-  const [actualCash, setActualCash] = useState('');
-  const [verificationNotes, setVerificationNotes] = useState('');
-  const [submittingVerification, setSubmittingVerification] = useState(false);
 
   useEffect(() => {
     loadReconciliation();
@@ -35,12 +19,11 @@ export default function ReconciliationPage() {
   const loadReconciliation = async () => {
     try {
       setLoading(true);
-      // Only load summary, don't load transactions (remove transactions from response)
       const res = await fetch(`/api/reconciliation?storeId=demo-store&date=${date}&summary=true`);
       const result = await res.json();
       setData(result);
     } catch (error) {
-      toast.error('Gagal memuat data rekonsilasi');
+      toast.error('Gagal memuat data rekonsiliasi');
     } finally {
       setLoading(false);
     }
@@ -55,13 +38,11 @@ export default function ReconciliationPage() {
     try {
       toast.loading('Memuat data transaksi...', { id: 'export' });
       
-      // Load full transactions for export (separate request)
       const res = await fetch(`/api/reconciliation?storeId=demo-store&date=${date}&summary=false`);
       const fullData = await res.json();
       
       toast.loading('Membuat file Excel...', { id: 'export' });
 
-      // Load XLSX from CDN dynamically
       const loadXLSX = () => {
         return new Promise((resolve, reject) => {
           if ((window as any).XLSX) {
@@ -79,19 +60,31 @@ export default function ReconciliationPage() {
 
       const XLSX: any = await loadXLSX();
       
-      // Create workbook
       const wb = XLSX.utils.book_new();
       
-      // Sheet 1: Summary
+      // Sheet 1: Summary per Bank/Channel
       const summaryData = [
-        ['LAPORAN REKONSILASI PEMBAYARAN'],
+        ['LAPORAN REKONSILIASI PEMBAYARAN'],
         ['Tanggal', date],
         ['Total Pendapatan', data.totalRevenue],
         ['Total Transaksi', data.totalTransactions],
         [],
-        ['RINGKASAN PER METODE PEMBAYARAN'],
-        ['Metode', 'Total', 'Jumlah Transaksi']
+        ['DETAIL PER CHANNEL PEMBAYARAN'],
+        ['Metode', 'Channel/Bank', 'Jumlah Transaksi', 'Total (Rp)']
       ];
+      
+      data.paymentSummary.forEach((summary: any) => {
+        summaryData.push([
+          summary.methodName,
+          summary.channelName,
+          summary.count,
+          summary.total
+        ]);
+      });
+      
+      summaryData.push([]);
+      summaryData.push(['RINGKASAN PER METODE']);
+      summaryData.push(['Metode', 'Total', 'Jumlah Transaksi']);
       
       Object.entries(data.byMethod).forEach(([method, amount]: [string, any]) => {
         const count = data.paymentSummary
@@ -100,23 +93,10 @@ export default function ReconciliationPage() {
         summaryData.push([method, amount, count]);
       });
       
-      summaryData.push([]);
-      summaryData.push(['RINGKASAN PER CHANNEL']);
-      summaryData.push(['Channel', 'Metode', 'Jumlah Transaksi', 'Total']);
-      
-      data.paymentSummary.forEach((summary: any) => {
-        summaryData.push([
-          summary.channelName,
-          summary.methodName,
-          summary.count,
-          summary.total
-        ]);
-      });
-      
       const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
       XLSX.utils.book_append_sheet(wb, wsSummary, 'Ringkasan');
       
-      // Sheet 2: Transactions Detail (from fullData)
+      // Sheet 2: Transactions Detail
       if (fullData.transactions && fullData.transactions.length > 0) {
         const transactionsData = [
           ['DETAIL TRANSAKSI'],
@@ -152,56 +132,12 @@ export default function ReconciliationPage() {
         XLSX.utils.book_append_sheet(wb, wsTransactions, 'Detail Transaksi');
       }
       
-      // Generate Excel file
       XLSX.writeFile(wb, `Reconciliation_${date}.xlsx`);
       
       toast.success('File Excel berhasil diunduh!', { id: 'export' });
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Gagal export data. Pastikan koneksi internet aktif.', { id: 'export' });
-    }
-  };
-
-  const handleCashVerification = async () => {
-    if (!actualCash) {
-      toast.error('Masukkan jumlah uang fisik di laci kasir');
-      return;
-    }
-
-    const expectedCash = data.byMethod.CASH || 0;
-    const difference = parseFloat(actualCash) - expectedCash;
-    
-    if (Math.abs(difference) > 10000) {
-      if (!confirm(`Terdapat selisih ${formatCurrency(Math.abs(difference))}. Yakin ingin lanjut verifikasi?`)) {
-        return;
-      }
-    }
-
-    try {
-      setSubmittingVerification(true);
-
-      // TODO: Save verification to database via API
-      const verificationData = {
-        date,
-        expectedCash,
-        actualCash: parseFloat(actualCash),
-        difference,
-        notes: verificationNotes,
-        verifiedAt: new Date().toISOString(),
-        verifiedBy: 'demo-user' // TODO: Get from session
-      };
-
-      console.log('Cash verification:', verificationData);
-      
-      toast.success('Verifikasi kas berhasil disimpan!');
-      setShowCashVerification(false);
-      setActualCash('');
-      setVerificationNotes('');
-      
-    } catch (error) {
-      toast.error('Gagal menyimpan verifikasi');
-    } finally {
-      setSubmittingVerification(false);
     }
   };
 
@@ -213,426 +149,250 @@ export default function ReconciliationPage() {
     );
   }
 
-  const expectedCash = data.byMethod.CASH || 0;
-  const cashDifference = actualCash ? parseFloat(actualCash) - expectedCash : 0;
+  // Group payment summary by method and create complete bank list
+  const groupedByMethod: Record<string, any[]> = {};
+  
+  // Initialize with all available channels from config
+  Object.values(PAYMENT_METHODS).forEach(method => {
+    groupedByMethod[method.id] = method.channels.map(channel => {
+      // Find existing data for this channel
+      const existingData = data.paymentSummary.find(
+        (s: any) => s.channelId === channel.id
+      );
+      
+      return existingData || {
+        channelId: channel.id,
+        channelName: channel.name,
+        methodId: method.id,
+        methodName: method.name,
+        count: 0,
+        total: 0,
+        color: method.bgColor
+      };
+    });
+  });
+
+  // Helper function to get icon
+  const getMethodIcon = (methodId: string) => {
+    const icons: Record<string, any> = {
+      CASH: Wallet,
+      TRANSFER: Building2,
+      CARD: CreditCard,
+      QRIS: Smartphone
+    };
+    return icons[methodId] || Wallet;
+  };
+
+  // Helper function to get color
+  const getMethodColor = (methodId: string) => {
+    const colors: Record<string, { bg: string; text: string; border: string }> = {
+      CASH: { bg: 'from-green-500 to-green-600', text: 'text-green-700', border: 'border-green-200' },
+      TRANSFER: { bg: 'from-blue-500 to-blue-600', text: 'text-blue-700', border: 'border-blue-200' },
+      CARD: { bg: 'from-purple-500 to-purple-600', text: 'text-purple-700', border: 'border-purple-200' },
+      QRIS: { bg: 'from-red-500 to-red-600', text: 'text-red-700', border: 'border-red-200' }
+    };
+    return colors[methodId] || colors.CASH;
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
-            Rekonsilasi Pembayaran
+            Rekonsiliasi Pembayaran
           </h1>
           <p className="text-gray-500 dark:text-gray-400">
-            Tracking detail pendapatan per channel pembayaran
+            Tracking detail pendapatan per channel pembayaran & bank
           </p>
         </div>
         <button
           onClick={handleExportExcel}
-          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center gap-2"
+          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold flex items-center gap-2 shadow-lg"
         >
           <FileSpreadsheet className="w-5 h-5" />
           Export Excel
         </button>
       </div>
 
-      {/* Date Filter */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
-        <div className="flex items-center gap-4">
-          <Calendar className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+      {/* Date Filter & Summary Stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        {/* Date Picker */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <label className="font-semibold dark:text-white">Pilih Tanggal</label>
+          </div>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="p-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+            className="w-full p-3 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white font-semibold"
           />
-          <div className="flex-1"></div>
-          <div className="text-right">
-            <div className="text-sm text-gray-500 dark:text-gray-400">Total Pendapatan</div>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {formatCurrency(data.totalRevenue)}
+        </div>
+
+        {/* Total Revenue */}
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow p-6 text-white">
+          <div className="flex items-center gap-3 mb-2">
+            <DollarSign className="w-8 h-8" />
+            <div className="flex-1">
+              <div className="text-sm opacity-90">Total Pendapatan</div>
+              <div className="text-3xl font-bold">
+                {formatCurrency(data.totalRevenue)}
+              </div>
             </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              {data.totalTransactions} transaksi
+          </div>
+        </div>
+
+        {/* Total Transactions */}
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow p-6 text-white">
+          <div className="flex items-center gap-3 mb-2">
+            <TrendingUp className="w-8 h-8" />
+            <div className="flex-1">
+              <div className="text-sm opacity-90">Total Transaksi</div>
+              <div className="text-3xl font-bold">
+                {data.totalTransactions}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Payment Summary Cards - All Channels */}
-      <div className="mb-6">
-        <h2 className="text-xl font-bold dark:text-white mb-4">💰 Saldo per Channel Pembayaran</h2>
-        
-        {/* Only show sections that have data */}
-        {data.paymentSummary.filter((s: any) => s.methodId === 'CASH').length > 0 && (
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 flex items-center gap-2">
-              <Wallet className="w-4 h-4" />
-              TUNAI (CASH)
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {data.paymentSummary
-                .filter((s: any) => s.methodId === 'CASH')
-                .map((summary: any) => {
-                  const percentage = ((summary.total / data.totalRevenue) * 100).toFixed(1);
-                  return (
-                    <div
-                      key={summary.channelId}
-                      className="bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 p-5 hover:shadow-lg transition-shadow"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="bg-green-500 text-white p-3 rounded-lg">
-                          <Wallet className="w-6 h-6" />
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {summary.methodName}
-                          </div>
-                          <div className="text-sm font-semibold text-gray-600 dark:text-gray-300">
-                            {summary.count}x
-                          </div>
-                        </div>
-                      </div>
-                      <h4 className="font-bold text-gray-800 dark:text-white mb-1">
-                        {summary.channelName}
-                      </h4>
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                        {formatCurrency(summary.total)}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                          <div
-                            className="bg-green-500 h-2 rounded-full transition-all"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                          {percentage}%
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+      {/* Info Box */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 mb-6 rounded">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+          <div className="text-sm text-blue-800 dark:text-blue-200">
+            <p className="font-semibold mb-1">💡 Tips Rekonsiliasi</p>
+            <p>Setiap bank/channel ditampilkan terpisah untuk memudahkan pengecekan saldo di masing-masing rekening. Channel dengan saldo Rp 0 juga ditampilkan untuk transparansi.</p>
           </div>
-        )}
-
-        {/* Transfer Bank */}
-        {data.paymentSummary.filter((s: any) => s.methodId === 'TRANSFER').length > 0 && (
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              TRANSFER BANK
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {data.paymentSummary
-                .filter((s: any) => s.methodId === 'TRANSFER')
-                .map((summary: any) => {
-                  const percentage = ((summary.total / data.totalRevenue) * 100).toFixed(1);
-                  return (
-                    <div
-                      key={summary.channelId}
-                      className="bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 p-5 hover:shadow-lg transition-shadow"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="bg-blue-500 text-white p-3 rounded-lg">
-                          <Building2 className="w-6 h-6" />
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {summary.methodName}
-                          </div>
-                          <div className="text-sm font-semibold text-gray-600 dark:text-gray-300">
-                            {summary.count}x
-                          </div>
-                        </div>
-                      </div>
-                      <h4 className="font-bold text-gray-800 dark:text-white mb-1">
-                        {summary.channelName}
-                      </h4>
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                        {formatCurrency(summary.total)}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                          <div
-                            className="bg-blue-500 h-2 rounded-full transition-all"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                          {percentage}%
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        )}
-
-        {/* Debit/Credit Card */}
-        {data.paymentSummary.filter((s: any) => s.methodId === 'CARD').length > 0 && (
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 flex items-center gap-2">
-              <CreditCard className="w-4 h-4" />
-              KARTU DEBIT/KREDIT
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {data.paymentSummary
-                .filter((s: any) => s.methodId === 'CARD')
-                .map((summary: any) => {
-                  const percentage = ((summary.total / data.totalRevenue) * 100).toFixed(1);
-                  return (
-                    <div
-                      key={summary.channelId}
-                      className="bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 p-5 hover:shadow-lg transition-shadow"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="bg-purple-500 text-white p-3 rounded-lg">
-                          <CreditCard className="w-6 h-6" />
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {summary.methodName}
-                          </div>
-                          <div className="text-sm font-semibold text-gray-600 dark:text-gray-300">
-                            {summary.count}x
-                          </div>
-                        </div>
-                      </div>
-                      <h4 className="font-bold text-gray-800 dark:text-white mb-1">
-                        {summary.channelName}
-                      </h4>
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                        {formatCurrency(summary.total)}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                          <div
-                            className="bg-purple-500 h-2 rounded-full transition-all"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                          {percentage}%
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        )}
-
-        {/* QRIS */}
-        {data.paymentSummary.filter((s: any) => s.methodId === 'QRIS').length > 0 && (
-          <div>
-            <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3 flex items-center gap-2">
-              <Smartphone className="w-4 h-4" />
-              QRIS
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {data.paymentSummary
-                .filter((s: any) => s.methodId === 'QRIS')
-                .map((summary: any) => {
-                  const percentage = ((summary.total / data.totalRevenue) * 100).toFixed(1);
-                  return (
-                    <div
-                      key={summary.channelId}
-                      className="bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-700 p-5 hover:shadow-lg transition-shadow"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="bg-red-500 text-white p-3 rounded-lg">
-                          <Smartphone className="w-6 h-6" />
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {summary.methodName}
-                          </div>
-                          <div className="text-sm font-semibold text-gray-600 dark:text-gray-300">
-                            {summary.count}x
-                          </div>
-                        </div>
-                      </div>
-                      <h4 className="font-bold text-gray-800 dark:text-white mb-1">
-                        {summary.channelName}
-                      </h4>
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-2">
-                        {formatCurrency(summary.total)}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                          <div
-                            className="bg-red-500 h-2 rounded-full transition-all"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                          {percentage}%
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Cash Verification Section */}
-      <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-lg border-2 border-yellow-300 dark:border-yellow-700 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-yellow-500 text-white p-3 rounded-lg">
-              <Wallet className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg text-gray-800 dark:text-white">
-                Verifikasi Uang di Laci Kasir
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Cek apakah uang fisik sesuai dengan sistem
-              </p>
-            </div>
-          </div>
-          {!showCashVerification && (
-            <button
-              onClick={() => setShowCashVerification(true)}
-              className="px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-semibold"
-            >
-              Verifikasi Sekarang
-            </button>
-          )}
         </div>
-
-        {showCashVerification ? (
-          <div className="mt-4 space-y-4">
-            <div className="bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-200 dark:border-blue-700 rounded-lg p-4">
-              <div className="text-sm text-blue-700 dark:text-blue-300 mb-1">
-                💰 Uang Cash (Sistem)
-              </div>
-              <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">
-                {formatCurrency(expectedCash)}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold mb-2 dark:text-white">
-                🔢 Uang Cash (Aktual di Laci) <span className="text-red-600">*</span>
-              </label>
-              <input
-                type="number"
-                value={actualCash}
-                onChange={(e) => setActualCash(e.target.value)}
-                placeholder="Masukkan jumlah uang fisik di laci"
-                className="w-full p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg text-2xl font-bold text-center focus:border-blue-500 focus:outline-none dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-
-            {actualCash && (
-              <div
-                className={`rounded-lg p-4 ${
-                  Math.abs(cashDifference) < 1000
-                    ? 'bg-green-50 dark:bg-green-900/30 border-2 border-green-300 dark:border-green-700'
-                    : cashDifference > 0
-                    ? 'bg-blue-50 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-700'
-                    : 'bg-red-50 dark:bg-red-900/30 border-2 border-red-300 dark:border-red-700'
-                }`}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  {Math.abs(cashDifference) < 1000 ? (
-                    <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-                  ) : (
-                    <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-                  )}
-                  <span
-                    className={`font-bold text-lg ${
-                      Math.abs(cashDifference) < 1000
-                        ? 'text-green-900 dark:text-green-100'
-                        : cashDifference > 0
-                        ? 'text-blue-900 dark:text-blue-100'
-                        : 'text-red-900 dark:text-red-100'
-                    }`}
-                  >
-                    {Math.abs(cashDifference) < 1000
-                      ? '✓ Sesuai!'
-                      : cashDifference > 0
-                      ? '↑ Lebih'
-                      : '↓ Kurang'}
-                  </span>
-                </div>
-                <div
-                  className={`text-3xl font-bold mb-1 ${
-                    Math.abs(cashDifference) < 1000
-                      ? 'text-green-900 dark:text-green-100'
-                      : cashDifference > 0
-                      ? 'text-blue-900 dark:text-blue-100'
-                      : 'text-red-900 dark:text-red-100'
-                  }`}
-                >
-                  {cashDifference > 0 ? '+' : ''}
-                  {formatCurrency(cashDifference)}
-                </div>
-                <div
-                  className={`text-sm ${
-                    Math.abs(cashDifference) < 1000
-                      ? 'text-green-700 dark:text-green-300'
-                      : cashDifference > 0
-                      ? 'text-blue-700 dark:text-blue-300'
-                      : 'text-red-700 dark:text-red-300'
-                  }`}
-                >
-                  {Math.abs(cashDifference) < 1000
-                    ? 'Perhitungan akurat, tidak ada selisih signifikan'
-                    : cashDifference > 0
-                    ? 'Ada kelebihan uang, mohon dicek kembali'
-                    : 'Ada kekurangan uang, mohon dicek kembali'}
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-semibold mb-2 dark:text-white">
-                Catatan Verifikasi
-              </label>
-              <textarea
-                value={verificationNotes}
-                onChange={(e) => setVerificationNotes(e.target.value)}
-                placeholder="Catatan tambahan (opsional)..."
-                className="w-full p-3 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                rows={2}
-              />
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowCashVerification(false);
-                  setActualCash('');
-                  setVerificationNotes('');
-                }}
-                className="flex-1 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-semibold"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleCashVerification}
-                disabled={!actualCash || submittingVerification}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                <CheckCircle className="w-5 h-5" />
-                {submittingVerification ? 'Menyimpan...' : 'Simpan Verifikasi'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-            Klik "Verifikasi Sekarang" untuk mencocokkan uang fisik di laci kasir dengan sistem
-          </div>
-        )}
       </div>
+
+      {/* Payment Details by Method */}
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold dark:text-white flex items-center gap-2">
+          💰 Detail Saldo per Bank & Channel Pembayaran
+        </h2>
+
+        {/* Render each payment method */}
+        {Object.entries(groupedByMethod).map(([methodId, channels]) => {
+          const Icon = getMethodIcon(methodId);
+          const colors = getMethodColor(methodId);
+          const totalAmount = channels.reduce((sum, ch) => sum + ch.total, 0);
+          const totalCount = channels.reduce((sum, ch) => sum + ch.count, 0);
+          
+          // Skip if no transactions for this method
+          if (totalCount === 0) return null;
+
+          return (
+            <div key={methodId} className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+              {/* Header */}
+              <div className={`bg-gradient-to-r ${colors.bg} px-6 py-4`}>
+                <div className="flex items-center gap-3 text-white">
+                  <Icon className="w-6 h-6" />
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold">{PAYMENT_METHODS[methodId].name.toUpperCase()}</h3>
+                    <p className="text-sm opacity-90">
+                      {totalCount} transaksi dari {channels.filter(ch => ch.count > 0).length} channel
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm opacity-90">Total {PAYMENT_METHODS[methodId].name}</div>
+                    <div className="text-3xl font-bold">
+                      {formatCurrency(totalAmount)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Channels Grid */}
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {channels.map((channel) => {
+                    const percentage = totalAmount > 0 
+                      ? ((channel.total / totalAmount) * 100).toFixed(1)
+                      : '0.0';
+                    const hasData = channel.count > 0;
+
+                    return (
+                      <div
+                        key={channel.channelId}
+                        className={`border-2 rounded-lg p-4 transition-all ${
+                          hasData 
+                            ? `${colors.border} dark:border-gray-600 hover:shadow-md bg-white dark:bg-gray-800` 
+                            : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 opacity-60'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex-1">
+                            <div className={`text-sm font-semibold ${
+                              hasData 
+                                ? 'text-gray-800 dark:text-gray-200' 
+                                : 'text-gray-500 dark:text-gray-500'
+                            }`}>
+                              {channel.channelName.replace(/^(Transfer - |Debit - |Credit Card - )/, '')}
+                            </div>
+                          </div>
+                          {hasData ? (
+                            <div className={`px-2 py-1 rounded text-xs font-bold ${colors.text} bg-opacity-20`}
+                                 style={{ backgroundColor: `${colors.text.replace('text-', 'rgb(var(--')}15)` }}>
+                              {channel.count}x
+                            </div>
+                          ) : (
+                            <div className="px-2 py-1 rounded text-xs font-bold text-gray-400 bg-gray-200 dark:bg-gray-800">
+                              0x
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className={`text-2xl font-bold mb-2 ${
+                          hasData 
+                            ? 'text-gray-800 dark:text-white' 
+                            : 'text-gray-400 dark:text-gray-600'
+                        }`}>
+                          {formatCurrency(channel.total)}
+                        </div>
+                        
+                        {hasData && (
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full ${colors.bg.includes('green') ? 'bg-green-500' : colors.bg.includes('blue') ? 'bg-blue-500' : colors.bg.includes('purple') ? 'bg-purple-500' : 'bg-red-500'}`}
+                                style={{ width: `${percentage}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+                              {percentage}%
+                            </span>
+                          </div>
+                        )}
+                        
+                        {!hasData && (
+                          <div className="text-xs text-gray-400 dark:text-gray-600 italic">
+                            Tidak ada transaksi
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* No data message */}
+      {data.totalTransactions === 0 && (
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-12 text-center">
+          <div className="text-gray-400 dark:text-gray-600 mb-4">
+            <DollarSign className="w-16 h-16 mx-auto mb-3" />
+            <p className="text-xl font-semibold">Tidak ada transaksi</p>
+            <p className="text-sm mt-2">Belum ada transaksi pada tanggal {date}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
