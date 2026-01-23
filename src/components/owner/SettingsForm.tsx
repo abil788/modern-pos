@@ -272,19 +272,6 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold mb-1 dark:text-white">Mata Uang</label>
-                <select
-                  value={formData.currency}
-                  onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                  className="w-full p-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="IDR">IDR - Rupiah</option>
-                  <option value="USD">USD - Dollar</option>
-                  <option value="EUR">EUR - Euro</option>
-                </select>
-              </div>
-
-              <div>
                 <label className="block text-sm font-semibold mb-1 dark:text-white">Pajak/PPN (%)</label>
                 <input
                   type="number"
