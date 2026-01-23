@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Tag } from 'lucide-react';
+import { X, Tag, UtensilsCrossed } from 'lucide-react';
 import { PAYMENT_METHODS } from '@/lib/payment-config';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -39,22 +39,27 @@ export function EnhancedCheckout({
   const [customerPhone, setCustomerPhone] = useState('');
   const [notes, setNotes] = useState('');
   
+  // Kitchen Display System fields
+  const [orderType, setOrderType] = useState<'dine-in' | 'takeaway' | 'delivery'>('dine-in');
+  const [tableNumber, setTableNumber] = useState('');
+  
   // Promo state
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [validatingPromo, setValidatingPromo] = useState(false);
 
-  // 🆕 Reset form when modal opens/closes
+  // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      // Reset all form fields when opening
       setSelectedMethod('CASH');
       setSelectedChannel('CASH_IDR');
       setAmountPaid('');
       setCustomerName('');
       setCustomerPhone('');
       setNotes('');
+      setOrderType('dine-in');
+      setTableNumber('');
       setPromoCode('');
       setAppliedPromo(null);
       setPromoDiscount(0);
@@ -156,6 +161,12 @@ export function EnhancedCheckout({
       return;
     }
 
+    // Validate table number for dine-in
+    if (orderType === 'dine-in' && !tableNumber.trim()) {
+      toast.error('Nomor meja harus diisi untuk Dine In!');
+      return;
+    }
+
     const paymentData = {
       paymentMethod: selectedMethod,
       paymentChannel: selectedChannel,
@@ -165,13 +176,16 @@ export function EnhancedCheckout({
       customerPhone: customerPhone || undefined,
       notes: notes || undefined,
       promoCode: appliedPromo ? appliedPromo.code : undefined,
-      promoDiscount
+      promoDiscount,
+      // Kitchen Display System fields
+      orderType,
+      tableNumber: orderType === 'dine-in' ? tableNumber : undefined,
     };
 
     onComplete(paymentData);
   };
 
-  const quickCashAmounts = [20000, 50000, 100000, 150000];
+  const quickCashAmounts = [20000, 50000, 100000, 150000, 200000];
 
   if (!isOpen) return null;
 
@@ -186,37 +200,103 @@ export function EnhancedCheckout({
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Order Type Selection */}
+          <div>
+            <label className="block text-sm font-semibold mb-3 dark:text-white flex items-center gap-2">
+              <UtensilsCrossed className="w-4 h-4" />
+              Tipe Order
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={() => setOrderType('dine-in')}
+                className={`p-4 rounded-lg border-2 font-semibold transition-all ${
+                  orderType === 'dine-in'
+                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+              >
+                🍽️ Dine In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOrderType('takeaway');
+                  setTableNumber('');
+                }}
+                className={`p-4 rounded-lg border-2 font-semibold transition-all ${
+                  orderType === 'takeaway'
+                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+              >
+                🥡 Takeaway
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOrderType('delivery');
+                  setTableNumber('');
+                }}
+                className={`p-4 rounded-lg border-2 font-semibold transition-all ${
+                  orderType === 'delivery'
+                    ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                    : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+              >
+                🚗 Delivery
+              </button>
+            </div>
+          </div>
+
+          {/* Table Number for Dine-In */}
+          {orderType === 'dine-in' && (
+            <div>
+              <label className="block text-sm font-semibold mb-2 dark:text-white">
+                Nomor Meja <span className="text-red-600">*</span>
+              </label>
+              <input
+                type="text"
+                value={tableNumber}
+                onChange={(e) => setTableNumber(e.target.value)}
+                placeholder="Contoh: 12"
+                className="w-full px-4 py-3 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white text-lg font-semibold"
+                required
+              />
+            </div>
+          )}
+
           {/* Order Summary */}
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
             <h3 className="font-semibold mb-3 dark:text-white">Ringkasan Pesanan</h3>
-            <div className="space-y-2 text-sm">
+            <div className="space-y-2 text-sm max-h-40 overflow-y-auto">
               {items.map((item) => (
                 <div key={item.productId} className="flex justify-between dark:text-gray-300">
                   <span>{item.name} x{item.quantity}</span>
                   <span>{formatCurrency(item.subtotal)}</span>
                 </div>
               ))}
-              <div className="border-t dark:border-gray-600 pt-2 mt-2">
-                <div className="flex justify-between dark:text-gray-300">
-                  <span>Subtotal:</span>
-                  <span>{formatCurrency(subtotal)}</span>
+            </div>
+            <div className="border-t dark:border-gray-600 pt-2 mt-2 space-y-1">
+              <div className="flex justify-between dark:text-gray-300">
+                <span>Subtotal:</span>
+                <span>{formatCurrency(subtotal)}</span>
+              </div>
+              {tax > 0 && (
+                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                  <span>Pajak:</span>
+                  <span>{formatCurrency(tax)}</span>
                 </div>
-                {tax > 0 && (
-                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
-                    <span>Pajak:</span>
-                    <span>{formatCurrency(tax)}</span>
-                  </div>
-                )}
-                {promoDiscount > 0 && (
-                  <div className="flex justify-between text-green-600 dark:text-green-400 font-semibold">
-                    <span>Diskon Promo:</span>
-                    <span>-{formatCurrency(promoDiscount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t dark:border-gray-600 text-blue-600 dark:text-blue-400">
-                  <span>Total:</span>
-                  <span>{formatCurrency(finalTotal)}</span>
+              )}
+              {promoDiscount > 0 && (
+                <div className="flex justify-between text-green-600 dark:text-green-400 font-semibold">
+                  <span>Diskon Promo:</span>
+                  <span>-{formatCurrency(promoDiscount)}</span>
                 </div>
+              )}
+              <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t dark:border-gray-600 text-blue-600 dark:text-blue-400">
+                <span>Total:</span>
+                <span>{formatCurrency(finalTotal)}</span>
               </div>
             </div>
           </div>
@@ -240,6 +320,7 @@ export function EnhancedCheckout({
                     </p>
                   </div>
                   <button
+                    type="button"
                     onClick={handleRemovePromo}
                     className="p-1 hover:bg-green-100 dark:hover:bg-green-800 rounded"
                   >
@@ -264,6 +345,7 @@ export function EnhancedCheckout({
                   disabled={validatingPromo}
                 />
                 <button
+                  type="button"
                   onClick={handleApplyPromo}
                   disabled={validatingPromo || !promoCode.trim()}
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
@@ -305,7 +387,7 @@ export function EnhancedCheckout({
             </div>
           </div>
 
-          {/* Payment Channel Selection - Only show if multiple channels */}
+          {/* Payment Channel Selection */}
           {methodConfig && methodConfig.channels.length > 1 && (
             <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4">
               <label className="block font-semibold mb-3 dark:text-white">
@@ -339,13 +421,13 @@ export function EnhancedCheckout({
                 Jumlah Bayar
               </label>
               
-              <div className="grid grid-cols-4 gap-2 mb-3">
+              <div className="grid grid-cols-5 gap-2 mb-3">
                 {quickCashAmounts.map((amount) => (
                   <button
                     key={amount}
                     type="button"
                     onClick={() => setAmountPaid(amount.toString())}
-                    className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm font-semibold dark:text-white"
+                    className="px-2 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-xs font-semibold dark:text-white"
                   >
                     {formatCurrency(amount)}
                   </button>
@@ -435,7 +517,10 @@ export function EnhancedCheckout({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={selectedMethod === 'CASH' && paid < finalTotal}
+            disabled={
+              (selectedMethod === 'CASH' && paid < finalTotal) || 
+              (orderType === 'dine-in' && !tableNumber.trim())
+            }
             className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
             Bayar Sekarang

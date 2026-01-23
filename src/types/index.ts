@@ -224,3 +224,54 @@ export interface PromoValidationResult {
   error?: string;
   message?: string;
 }
+
+export interface KitchenOrder {
+  id: string;
+  transactionId: string;
+  invoiceNumber: string;
+  items: KitchenOrderItem[];
+  status: 'pending' | 'preparing' | 'ready' | 'completed';
+  priority: 'normal' | 'urgent';
+  station: string; // e.g., 'grill', 'fryer', 'salad', 'drinks'
+  tableNumber?: string;
+  customerName?: string;
+  orderType: 'dine-in' | 'takeaway' | 'delivery';
+  notes?: string;
+  createdAt: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+  estimatedTime: number; // in minutes
+}
+
+export interface KitchenOrderItem {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  notes?: string;
+  modifiers?: string[];
+  station: string;
+  status: 'pending' | 'preparing' | 'ready';
+  prepTime: number; // in minutes
+}
+
+export interface KitchenStation {
+  id: string;
+  name: string;
+  displayName: string;
+  color: string;
+  icon: string;
+  orders: KitchenOrder[];
+  isActive: boolean;
+}
+
+export interface KDSSettings {
+  storeId: string;
+  enableSound: boolean;
+  soundVolume: number;
+  autoCompleteTime: number; // seconds
+  showCustomerName: boolean;
+  colorCodingEnabled: boolean;
+  urgentThreshold: number; // minutes
+  stations: KitchenStation[];
+}

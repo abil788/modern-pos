@@ -1,4 +1,4 @@
-// Prisma Schema - Modern POS System dengan Visual Authentication
+// Prisma Schema - Modern POS System with Kitchen Display System
 // Database: PostgreSQL 14+
 
 generator client {
@@ -58,7 +58,7 @@ model User {
   store        Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   activityLogs ActivityLog[]
-  cashDrawers   CashDrawer[]
+  cashDrawers  CashDrawer[]
 
   @@index([storeId, isActive])
   @@index([role])
@@ -94,6 +94,11 @@ model Product {
   categoryId  String?
   storeId     String
   isActive    Boolean  @default(true)
+  
+  // Kitchen Display System
+  prepTime       Int?    @default(5) // Preparation time in minutes
+  kitchenStation String? @default("main") // 'main' | 'grill' | 'fryer' | 'salad' | 'drinks'
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -123,45 +128,55 @@ model ProductVariation {
 }
 
 model Transaction {
-  id            String  @id @default(cuid())
-  invoiceNumber String  @unique
-  subtotal      Float
-  tax           Float   @default(0)
-  discount      Float   @default(0)
-  total         Float
-  paymentMethod String
-  paymentChannel String? 
-  paymentReference String? 
-  amountPaid    Float
-  change        Float   @default(0)
-  customerName  String?
-  customerPhone String?
-  notes         String?
+  id               String   @id @default(cuid())
+  invoiceNumber    String   @unique
+  subtotal         Float
+  tax              Float    @default(0)
+  discount         Float    @default(0)
+  total            Float
+  paymentMethod    String
+  paymentChannel   String?
+  paymentReference String?
+  amountPaid       Float
+  change           Float    @default(0)
+  customerName     String?
+  customerPhone    String?
+  notes            String?
 
   promoCode     String?
   promoDiscount Float   @default(0)
 
+  // Kitchen Display System fields
+  orderType          String?   @default("dine-in") // 'dine-in' | 'takeaway' | 'delivery'
+  tableNumber        String?
+  kitchenStatus      String?   @default("pending") // 'pending' | 'preparing' | 'ready' | 'completed'
+  sentToKitchenAt    DateTime?
+  kitchenStartedAt   DateTime?
+  kitchenCompletedAt DateTime?
+
   cashierId String
   storeId   String
-  isSynced  Boolean  @default(false)
-  
-  isReconciled     Boolean   @default(false)
-  reconciledAt     DateTime?
-  reconciledBy     String?
-  
+  isSynced  Boolean @default(false)
+
+  isReconciled Boolean   @default(false)
+  reconciledAt DateTime?
+  reconciledBy String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  store         Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  cashier       User             @relation(fields: [cashierId], references: [id])
-  items         TransactionItem[]
+  store   Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  cashier User              @relation(fields: [cashierId], references: [id])
+  items   TransactionItem[]
 
   @@index([storeId, createdAt])
   @@index([invoiceNumber])
   @@index([createdAt])
   @@index([cashierId])
   @@index([promoCode])
-  @@index([paymentMethod, paymentChannel]) // NEW
+  @@index([paymentMethod, paymentChannel])
+  @@index([kitchenStatus])
+  @@index([orderType])
 }
 
 model TransactionItem {
@@ -173,6 +188,14 @@ model TransactionItem {
   price         Float
   subtotal      Float
   discount      Float    @default(0)
+  notes         String?
+  
+  // Kitchen Display System fields
+  kitchenStation String?  @default("main") // 'main' | 'grill' | 'fryer' | 'salad' | 'drinks'
+  kitchenStatus  String?  @default("pending") // 'pending' | 'preparing' | 'ready'
+  prepTime       Int?     @default(5) // in minutes
+  modifiers      String[] @default([]) // e.g., ["No ice", "Extra spicy"]
+  
   createdAt     DateTime @default(now())
 
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
@@ -180,25 +203,27 @@ model TransactionItem {
 
   @@index([productId])
   @@index([transactionId])
+  @@index([kitchenStation])
+  @@index([kitchenStatus])
 }
 
 model CashDrawer {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   storeId         String
   cashierId       String
-  openingBalance  Float    @default(0)
+  openingBalance  Float     @default(0)
   closingBalance  Float?
   expectedBalance Float?
   actualBalance   Float?
   difference      Float?
   notes           String?
-  openedAt        DateTime @default(now())
+  openedAt        DateTime  @default(now())
   closedAt        DateTime?
-  status          String   @default("OPEN") // OPEN, CLOSED
-  
+  status          String    @default("OPEN") // OPEN, CLOSED
+
   store   Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
   cashier User  @relation(fields: [cashierId], references: [id])
-  
+
   @@index([storeId, status])
   @@index([cashierId])
   @@index([openedAt])
@@ -310,4 +335,3 @@ model ActivityLog {
   @@index([createdAt])
   @@index([userId])
 }
-
