@@ -19,9 +19,10 @@ export function NotificationBanner() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState(0);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [offlineDismissed, setOfflineDismissed] = useState(false);
 
   useEffect(() => {
-    // Load dismissed notifications from localStorage
+    // Load dismissed notifications from localStorage (only for persistent dismissals like low-stock)
     const dismissed = localStorage.getItem(DISMISSED_KEY);
     if (dismissed) {
       try {
@@ -39,17 +40,22 @@ export function NotificationBanner() {
   }, []);
 
   useEffect(() => {
-    // Offline notification
+    // Offline notification - can be temporarily dismissed
     if (!isOnline) {
-      addNotification({
-        id: 'offline',
-        type: 'warning',
-        message: `Mode Offline - ${pendingCount} transaksi menunggu sync`,
-        persistent: true,
-        dismissable: false,
-      });
+      // Reset dismissed state when going offline
+      if (!offlineDismissed) {
+        addNotification({
+          id: 'offline',
+          type: 'warning',
+          message: `Mode Offline${pendingCount > 0 ? ` - ${pendingCount} transaksi menunggu sync` : ' - Transaksi akan disimpan lokal'}`,
+          persistent: true,
+          dismissable: true, // Can be dismissed
+        });
+      }
     } else {
+      // When back online, remove offline notification and reset dismissed state
       removeNotification('offline');
+      setOfflineDismissed(false);
       
       if (pendingCount > 0) {
         addNotification({
@@ -62,10 +68,10 @@ export function NotificationBanner() {
         setTimeout(() => removeNotification('syncing'), 3000);
       }
     }
-  }, [isOnline, pendingCount]);
+  }, [isOnline, pendingCount, offlineDismissed]);
 
   useEffect(() => {
-    // Low stock notification - can be dismissed
+    // Low stock notification - can be permanently dismissed
     if (lowStockProducts > 0 && !dismissedIds.has('low-stock')) {
       addNotification({
         id: 'low-stock',
@@ -110,14 +116,25 @@ export function NotificationBanner() {
   const handleDismiss = (id: string) => {
     removeNotification(id);
     
-    // Save to localStorage
-    const newDismissed = new Set(dismissedIds);
-    newDismissed.add(id);
-    setDismissedIds(newDismissed);
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify(Array.from(newDismissed)));
+    if (id === 'offline') {
+      // Temporarily dismiss offline notification (will show again on next offline event)
+      setOfflineDismissed(true);
+    } else {
+      // Permanently dismiss other notifications (like low-stock)
+      const newDismissed = new Set(dismissedIds);
+      newDismissed.add(id);
+      setDismissedIds(newDismissed);
+      localStorage.setItem(DISMISSED_KEY, JSON.stringify(Array.from(newDismissed)));
+    }
   };
 
-  const visibleNotifications = notifications.filter(n => !dismissedIds.has(n.id));
+  // Don't filter offline notification by dismissedIds - use offlineDismissed instead
+  const visibleNotifications = notifications.filter(n => {
+    if (n.id === 'offline') {
+      return !offlineDismissed;
+    }
+    return !dismissedIds.has(n.id);
+  });
 
   if (visibleNotifications.length === 0) return null;
 
@@ -126,7 +143,7 @@ export function NotificationBanner() {
       {visibleNotifications.map((notification) => (
         <div
           key={notification.id}
-          className={`flex items-center justify-between px-4 py-3 rounded-lg shadow-lg ${
+          className={`flex items-center justify-between px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm ${
             notification.type === 'warning'
               ? 'bg-yellow-500 text-white'
               : notification.type === 'error'
@@ -136,21 +153,24 @@ export function NotificationBanner() {
               : 'bg-blue-500 text-white'
           }`}
         >
-          <div className="flex items-center gap-3">
-            {notification.id === 'offline' && <WifiOff className="w-5 h-5" />}
-            {notification.id === 'syncing' && <Wifi className="w-5 h-5" />}
-            {notification.id === 'low-stock' && <Package className="w-5 h-5" />}
+          <div className="flex items-center gap-3 flex-1">
+            {notification.id === 'offline' && <WifiOff className="w-5 h-5 flex-shrink-0" />}
+            {notification.id === 'syncing' && <Wifi className="w-5 h-5 flex-shrink-0 animate-pulse" />}
+            {notification.id === 'low-stock' && <Package className="w-5 h-5 flex-shrink-0" />}
             {notification.type === 'warning' && 
               notification.id !== 'offline' && 
               notification.id !== 'low-stock' && (
-              <AlertTriangle className="w-5 h-5" />
+              <AlertTriangle className="w-5 h-5 flex-shrink-0" />
             )}
-            <p className="font-semibold">{notification.message}</p>
+            <div className="flex-1">
+              <p className="font-semibold">{notification.message}</p>
+              {notification.id === 'offline'}
+            </div>
           </div>
           {notification.dismissable && (
             <button
               onClick={() => handleDismiss(notification.id)}
-              className="p-1 hover:bg-white hover:bg-opacity-20 rounded ml-4"
+              className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded ml-4 flex-shrink-0 transition-colors"
               title="Tutup notifikasi"
             >
               <X className="w-4 h-4" />

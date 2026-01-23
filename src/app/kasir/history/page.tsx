@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Receipt, Eye, Calendar, DollarSign, ShoppingBag, Filter } from 'lucide-react';
+import { Receipt, Eye, Calendar, DollarSign, ShoppingBag, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Transaction } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import toast from 'react-hot-toast';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function KasirHistoryPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -12,6 +14,7 @@ export default function KasirHistoryPage() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [filterPeriod, setFilterPeriod] = useState<'today' | 'week' | 'month' | 'all'>('today');
   const [session, setSession] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     // Get session
@@ -31,6 +34,11 @@ export default function KasirHistoryPage() {
       loadTransactions();
     }
   }, [session, filterPeriod]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterPeriod]);
 
   const loadTransactions = async () => {
     if (!session) return;
@@ -59,6 +67,11 @@ export default function KasirHistoryPage() {
 
       const myTransactions = allTransactions.filter(
         (t: Transaction) => t.cashierId === session.userId
+      );
+
+      // Sort by date (newest first)
+      myTransactions.sort((a: Transaction, b: Transaction) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
       setTransactions(myTransactions);
@@ -100,6 +113,16 @@ export default function KasirHistoryPage() {
     }
 
     return { startDate, endDate };
+  };
+
+  // Pagination calculations
+  const totalPages = Math.ceil(transactions.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const currentTransactions = transactions.slice(startIndex, endIndex);
+
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
 
   const totalRevenue = transactions.reduce((sum, t) => sum + t.total, 0);
@@ -165,7 +188,7 @@ export default function KasirHistoryPage() {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
         <div className="flex items-center gap-3">
           <Filter className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {(['today', 'week', 'month', 'all'] as const).map((period) => (
               <button
                 key={period}
@@ -221,7 +244,7 @@ export default function KasirHistoryPage() {
                     </div>
                   </td>
                 </tr>
-              ) : transactions.length === 0 ? (
+              ) : currentTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     <Receipt className="w-12 h-12 mx-auto mb-2 text-gray-300" />
@@ -229,7 +252,7 @@ export default function KasirHistoryPage() {
                   </td>
                 </tr>
               ) : (
-                transactions.map((transaction) => (
+                currentTransactions.map((transaction) => (
                   <tr key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 text-sm font-medium text-blue-600">
                       {transaction.invoiceNumber}
@@ -271,6 +294,64 @@ export default function KasirHistoryPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {!loading && transactions.length > 0 && (
+          <div className="px-6 py-4 border-t dark:border-gray-700 flex items-center justify-between">
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              Menampilkan {startIndex + 1}-{Math.min(endIndex, transactions.length)} dari {transactions.length} transaksi
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                  // Show first page, last page, current page, and pages around current
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => goToPage(page)}
+                        className={`px-3 py-1 rounded-lg ${
+                          currentPage === page
+                            ? 'bg-blue-600 text-white'
+                            : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  } else if (
+                    (page === currentPage - 2 && page > 1) ||
+                    (page === currentPage + 2 && page < totalPages)
+                  ) {
+                    return <span key={page} className="px-2 text-gray-400">...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+
+              <button
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg border dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Detail Modal */}

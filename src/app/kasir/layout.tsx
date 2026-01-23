@@ -67,14 +67,17 @@ export default function KasirLayout({ children }: { children: React.ReactNode })
   const handleLogout = async () => {
     if (!confirm('Yakin ingin logout?')) return;
     try {
-      if (session) {
+      // Only try to call API if online
+      if (navigator.onLine && session) {
         await fetch('/api/auth/logout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: session.userId, storeId: 'demo-store' }),
         });
       }
-    } catch {}
+    } catch (error) {
+      console.log('Logout API call failed (might be offline):', error);
+    }
     localStorage.removeItem('cashier_session');
     toast.success('Logout berhasil');
     router.push('/login');
@@ -99,7 +102,7 @@ export default function KasirLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="h-screen w-full flex bg-gray-100 dark:bg-gray-900 overflow-hidden">
-      {/* Button to open sidebar */}
+      {/* Button to open sidebar - Always visible */}
       <button 
         onClick={() => setSidebarOpen(true)} 
         className="fixed top-4 left-4 z-50 p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg hover:shadow-xl transition-shadow"
@@ -115,7 +118,7 @@ export default function KasirLayout({ children }: { children: React.ReactNode })
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Always rendered, just transformed */}
       <aside 
         className={`fixed z-50 inset-y-0 left-0 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 flex flex-col w-64 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
