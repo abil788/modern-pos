@@ -564,62 +564,68 @@ export default function KasirPage() {
         onClose={() => setShowScanner(false)}
         onScan={handleScanBarcode}
       />
+        <EnhancedCheckout
+          isOpen={showCheckout}
+          onClose={() => setShowCheckout(false)}
+          subtotal={subtotal}
+          tax={tax}
+          total={total}
+          items={items}
+          currentCashier={currentCashier}
+          products={products}
+          storeId={store?.id || 'demo-store'}
+          onComplete={async (paymentData) => {
+            const transactionData = {
+              items: items.map((item) => {
+                const product = products.find(p => p.id === item.productId);
+                return {
+                  productId: item.productId,
+                  name: item.name,
+                  quantity: item.quantity,
+                  price: item.price,
+                  subtotal: item.subtotal,
+                  discount: item.discount || 0,
+                };
+              }),
+              subtotal,
+              tax,
+              discount: paymentData.promoDiscount || 0,
+              total: total - (paymentData.promoDiscount || 0),
+              paymentMethod: paymentData.paymentMethod,
+              paymentChannel: paymentData.paymentChannel,
+              amountPaid: paymentData.amountPaid,
+              change: paymentData.change,
+              customerName: paymentData.customerName,
+              customerPhone: paymentData.customerPhone,
+              notes: paymentData.notes,
+              promoCode: paymentData.promoCode,
+              promoDiscount: paymentData.promoDiscount || 0,
+              storeId: store?.id || 'demo-store',
+              cashierId: currentCashier.id,
+              
+              // Kitchen Display System fields
+              orderType: paymentData.orderType,
+              tableNumber: paymentData.tableNumber,
+            };
 
-      <EnhancedCheckout
-        isOpen={showCheckout}
-        onClose={() => setShowCheckout(false)}
-        subtotal={subtotal}
-        tax={tax}
-        total={total}
-        items={items}
-        currentCashier={currentCashier}
-        products={products}
-        storeId={store?.id || 'demo-store'}
-        onComplete={async (paymentData) => {
-          const transactionData = {
-            items: items.map((item) => ({
-              productId: item.productId,
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-              subtotal: item.subtotal,
-              discount: item.discount || 0,
-            })),
-            subtotal,
-            tax,
-            discount: paymentData.promoDiscount || 0,
-            total: total - (paymentData.promoDiscount || 0),
-            paymentMethod: paymentData.paymentMethod,
-            paymentChannel: paymentData.paymentChannel,
-            amountPaid: paymentData.amountPaid,
-            change: paymentData.change,
-            customerName: paymentData.customerName,
-            customerPhone: paymentData.customerPhone,
-            notes: paymentData.notes,
-            promoCode: paymentData.promoCode,
-            promoDiscount: paymentData.promoDiscount || 0,
-            storeId: store?.id || 'demo-store',
-            cashierId: currentCashier.id,
-          };
+            const res = await fetch('/api/transactions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(transactionData),
+            });
 
-          const res = await fetch('/api/transactions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(transactionData),
-          });
+            if (!res.ok) throw new Error('Failed to create transaction');
 
-          if (!res.ok) throw new Error('Failed to create transaction');
-
-          const transaction = await res.json();
-          toast.success('Transaksi berhasil!');
-          
-          setCompletedTransaction(transaction);
-          setShowCheckout(false);
-          setShowReceipt(true);
-          clearCart();
-          loadProducts();
-        }}
-      />
+            const transaction = await res.json();
+            toast.success('Transaksi berhasil!');
+            
+            setCompletedTransaction(transaction);
+            setShowCheckout(false);
+            setShowReceipt(true);
+            clearCart();
+            loadProducts();
+          }}
+        />
 
       {completedTransaction && (
         <Receipt

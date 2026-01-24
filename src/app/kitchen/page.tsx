@@ -1,16 +1,17 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { pusherClient } from '@/lib/pusher';
 import {
   Clock,
   CheckCircle,
-  AlertCircle,
   ChefHat,
   Volume2,
   VolumeX,
   Grid,
   List,
-  Settings,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -24,6 +25,7 @@ interface KitchenOrderItem {
   station: string;
   status: 'pending' | 'preparing' | 'ready';
   prepTime: number;
+  modifiers?: string[];
 }
 
 interface KitchenOrder {
@@ -41,61 +43,113 @@ interface KitchenOrder {
   completedAt?: Date;
 }
 
+const STORE_ID = 'demo-store';
+
 export default function KitchenDisplayPage() {
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStation, setSelectedStation] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+  
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const prevOrderCountRef = useRef<number>(0);
 
   const stations = [
-    { id: 'all', name: 'Semua', color: 'bg-blue-500' },
     { id: 'main', name: 'Main Kitchen', color: 'bg-green-500' },
-    { id: 'grill', name: 'Grill', color: 'bg-red-500' },
-    { id: 'fryer', name: 'Fryer', color: 'bg-orange-500' },
-    { id: 'salad', name: 'Salad', color: 'bg-green-400' },
-    { id: 'drinks', name: 'Drinks', color: 'bg-blue-400' },
   ];
 
   useEffect(() => {
-    // Create audio element for notification
+    // Setup notification sound
     audioRef.current = new Audio('/sounds/kitchen-bell.mp3');
+    
+    // Initial load
     loadOrders();
 
-    // Polling every 5 seconds
-    const interval = setInterval(loadOrders, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    // Play sound when new order arrives
-    if (orders.length > prevOrderCountRef.current && soundEnabled) {
-      playNotificationSound();
+    // 🔥 Setup Pusher Real-time Connection (if available)
+    if (!pusherClient) {
+      console.warn('⚠️ Pusher not configured. Kitchen display will use polling.');
+      setIsConnected(false);
+      
+      // Fallback: Poll every 10 seconds if Pusher not available
+      const interval = setInterval(loadOrders, 10000);
+      return () => clearInterval(interval);
     }
-    prevOrderCountRef.current = orders.length;
-  }, [orders.length, soundEnabled]);
+
+    const channel = pusherClient.subscribe(`kitchen-${STORE_ID}`);
+
+    // Listen for new orders
+    channel.bind('new-order', (newOrder: KitchenOrder) => {
+      console.log('📥 New order received:', newOrder);
+      
+      setOrders((prev) => {
+        // Avoid duplicates
+        if (prev.find(o => o.id === newOrder.id)) {
+          return prev;
+        }
+        
+        // Play sound for new orders
+        if (soundEnabled && audioRef.current) {
+          audioRef.current.play().catch(console.error);
+        }
+        
+        toast.success(`New Order: ${newOrder.invoiceNumber}`, {
+          icon: '🔔',
+          duration: 5000,
+        });
+        
+        return [newOrder, ...prev];
+      });
+    });
+
+    // Listen for order updates
+    channel.bind('order-update', (update: { orderId: string; status: string }) => {
+      console.log('🔄 Order update:', update);
+      
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === update.orderId
+            ? { ...order, status: update.status as any }
+            : order
+        )
+      );
+    });
+
+    // Connection status
+    pusherClient.connection.bind('connected', () => {
+      setIsConnected(true);
+      console.log('✅ Pusher connected');
+    });
+
+    pusherClient.connection.bind('disconnected', () => {
+      setIsConnected(false);
+      console.log('❌ Pusher disconnected');
+    });
+
+    // Cleanup
+    return () => {
+      channel.unbind_all();
+      channel.unsubscribe();
+    };
+  }, [soundEnabled]);
 
   const loadOrders = async () => {
     try {
+      setLoading(true);
       const res = await fetch(
-        `/api/kds?storeId=demo-store&status=pending,preparing`
+        `/api/kds?storeId=${STORE_ID}&status=pending,preparing`
       );
+      
       if (!res.ok) throw new Error('Failed to fetch orders');
 
       const data = await res.json();
       setOrders(data);
     } catch (error) {
       console.error('Error loading kitchen orders:', error);
+      toast.error('Failed to load orders');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const playNotificationSound = () => {
-    if (audioRef.current) {
-      audioRef.current.play().catch((e) => console.error('Audio play error:', e));
     }
   };
 
@@ -123,10 +177,18 @@ export default function KitchenDisplayPage() {
           status: 'preparing',
         }),
       });
-      loadOrders();
-      toast.success('Order dimulai');
+      
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === orderId
+            ? { ...o, status: 'preparing', startedAt: new Date() }
+            : o
+        )
+      );
+      
+      toast.success('Order started');
     } catch (error) {
-      toast.error('Gagal memulai order');
+      toast.error('Failed to start order');
     }
   };
 
@@ -141,9 +203,27 @@ export default function KitchenDisplayPage() {
           itemStatus: 'ready',
         }),
       });
-      loadOrders();
+
+      setOrders((prev) =>
+        prev.map((order) => {
+          if (order.id === orderId) {
+            const updatedItems = order.items.map((item) =>
+              item.id === itemId ? { ...item, status: 'ready' as const } : item
+            );
+            
+            const allReady = updatedItems.every((item) => item.status === 'ready');
+            
+            return {
+              ...order,
+              items: updatedItems,
+              status: allReady ? ('ready' as const) : order.status,
+            };
+          }
+          return order;
+        })
+      );
     } catch (error) {
-      toast.error('Gagal update item');
+      toast.error('Failed to update item');
     }
   };
 
@@ -157,10 +237,12 @@ export default function KitchenDisplayPage() {
           status: 'completed',
         }),
       });
-      loadOrders();
-      toast.success('Order selesai!');
+      
+      // Remove from display
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      toast.success('Order completed!', { icon: '✅' });
     } catch (error) {
-      toast.error('Gagal menyelesaikan order');
+      toast.error('Failed to complete order');
     }
   };
 
@@ -192,8 +274,19 @@ export default function KitchenDisplayPage() {
                 <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
                   Kitchen Display System
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
                   {filteredOrders.length} Active Orders
+                  {isConnected ? (
+                    <span className="flex items-center gap-1 text-green-600">
+                      <Wifi className="w-4 h-4" />
+                      Live
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-red-600">
+                      <WifiOff className="w-4 h-4" />
+                      Offline
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -271,8 +364,8 @@ export default function KitchenDisplayPage() {
           <div className="flex items-center justify-center h-full">
             <div className="text-center text-gray-400">
               <ChefHat className="w-20 h-20 mx-auto mb-4 opacity-50" />
-              <p className="text-xl">Tidak ada order saat ini</p>
-              <p className="text-sm mt-2">Order baru akan muncul disini</p>
+              <p className="text-xl">No active orders</p>
+              <p className="text-sm mt-2">New orders will appear here in real-time</p>
             </div>
           </div>
         ) : viewMode === 'grid' ? (
@@ -309,25 +402,13 @@ export default function KitchenDisplayPage() {
   );
 }
 
-// Order Card Component
-function OrderCard({
-  order,
-  onStart,
-  onCompleteItem,
-  onComplete,
-  getElapsedTime,
-  getOrderColor,
-}: any) {
+// Order Card Component (same as before)
+function OrderCard({ order, onStart, onCompleteItem, onComplete, getElapsedTime, getOrderColor }: any) {
   const elapsed = getElapsedTime(order.createdAt, order.startedAt);
   const allItemsReady = order.items.every((item: any) => item.status === 'ready');
 
   return (
-    <div
-      className={`rounded-xl border-4 ${getOrderColor(
-        order
-      )} p-4 shadow-lg transition-all`}
-    >
-      {/* Header */}
+    <div className={`rounded-xl border-4 ${getOrderColor(order)} p-4 shadow-lg transition-all`}>
       <div className="flex items-start justify-between mb-3">
         <div>
           <h3 className="text-xl font-bold text-gray-800 dark:text-white">
@@ -345,7 +426,6 @@ function OrderCard({
           )}
         </div>
 
-        {/* Timer */}
         <div
           className={`flex items-center gap-2 px-3 py-1 rounded-full ${
             elapsed >= 15
@@ -360,7 +440,6 @@ function OrderCard({
         </div>
       </div>
 
-      {/* Items */}
       <div className="space-y-2 mb-4">
         {order.items.map((item: any) => (
           <div
@@ -376,13 +455,18 @@ function OrderCard({
                 <p className="font-semibold dark:text-white">
                   {item.quantity}x {item.productName}
                 </p>
+                {item.modifiers && item.modifiers.length > 0 && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    {item.modifiers.join(', ')}
+                  </p>
+                )}
                 {item.notes && (
                   <p className="text-xs text-red-600 dark:text-red-400 mt-1">
                     Note: {item.notes}
                   </p>
                 )}
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Station: {item.station} • {item.prepTime}min
+                  {item.station} • {item.prepTime}min
                 </p>
               </div>
               <button
@@ -405,7 +489,6 @@ function OrderCard({
         ))}
       </div>
 
-      {/* Notes */}
       {order.notes && (
         <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
           <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
@@ -414,7 +497,6 @@ function OrderCard({
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex gap-2">
         {order.status === 'pending' ? (
           <button
@@ -440,25 +522,13 @@ function OrderCard({
   );
 }
 
-// Order List Item Component
-function OrderListItem({
-  order,
-  onStart,
-  onCompleteItem,
-  onComplete,
-  getElapsedTime,
-  getOrderColor,
-}: any) {
+// Order List Item (similar structure)
+function OrderListItem({ order, onStart, onCompleteItem, onComplete, getElapsedTime, getOrderColor }: any) {
   const elapsed = getElapsedTime(order.createdAt, order.startedAt);
   const allItemsReady = order.items.every((item: any) => item.status === 'ready');
 
   return (
-    <div
-      className={`rounded-xl border-4 ${getOrderColor(
-        order
-      )} p-6 shadow-lg flex items-center gap-6`}
-    >
-      {/* Timer */}
+    <div className={`rounded-xl border-4 ${getOrderColor(order)} p-6 shadow-lg flex items-center gap-6`}>
       <div
         className={`flex flex-col items-center justify-center w-24 h-24 rounded-full ${
           elapsed >= 15
@@ -472,7 +542,6 @@ function OrderListItem({
         <span className="text-2xl font-bold">{elapsed}m</span>
       </div>
 
-      {/* Order Info */}
       <div className="flex-1">
         <div className="flex items-center justify-between mb-4">
           <div>
@@ -487,7 +556,6 @@ function OrderListItem({
             </p>
           </div>
 
-          {/* Action Button */}
           {order.status === 'pending' ? (
             <button
               onClick={() => onStart(order.id)}
@@ -509,7 +577,6 @@ function OrderListItem({
           )}
         </div>
 
-        {/* Items */}
         <div className="grid grid-cols-2 gap-3">
           {order.items.map((item: any) => (
             <div

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { generateInvoiceNumber } from '@/lib/db';
+import { triggerKitchenOrder } from '@/lib/pusher-server';
 
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
@@ -7,6 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const storeId = searchParams.get('storeId');
+    const cashierId = searchParams.get('cashierId'); // Filter by cashier
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const search = searchParams.get('search'); 
@@ -22,6 +24,11 @@ export async function GET(request: NextRequest) {
 
     // Build WHERE clause
     const where: any = { storeId };
+
+    // Filter by cashier if provided
+    if (cashierId) {
+      where.cashierId = cashierId;
+    }
 
     if (startDate && endDate) {
       where.createdAt = {
@@ -40,6 +47,12 @@ export async function GET(request: NextRequest) {
         },
         {
           customerName: {
+            contains: search,
+            mode: 'insensitive',
+          },
+        },
+        {
+          customerPhone: {
             contains: search,
             mode: 'insensitive',
           },
@@ -91,7 +104,7 @@ export async function GET(request: NextRequest) {
       pagination: {
         page,
         limit,
-        totalCount,
+        total: totalCount,
         totalPages: Math.ceil(totalCount / limit),
         hasMore: offset + transactions.length < totalCount,
         totalRevenue,     
@@ -129,12 +142,16 @@ export async function POST(request: NextRequest) {
       promoCode,        
       promoDiscount,
       cashierId,
-      paymentChannel,      // ✅ Received from body
-      paymentReference,    // ✅ Received from body
+      paymentChannel,
+      paymentReference,
+      // Kitchen Display System fields
+      orderType = 'dine-in',
+      tableNumber,
     } = body;
 
     console.log(`[TRANSACTIONS API] Processing transaction | Store: ${storeId} | Cashier: ${cashierId}`);
     console.log(`[TRANSACTIONS API] Payment: ${paymentMethod} | Channel: ${paymentChannel || 'default'}`);
+    console.log(`[TRANSACTIONS API] Order Type: ${orderType}${tableNumber ? ` | Table: ${tableNumber}` : ''}`);
     if (promoCode) {
       console.log(`[TRANSACTIONS API] Promo applied: ${promoCode} | Discount: ${promoDiscount}`);
     }
@@ -165,7 +182,7 @@ export async function POST(request: NextRequest) {
       where: { 
         id: cashierId,
         storeId: storeId,
-        isActive: true, // Ensure cashier is active
+        isActive: true,
       },
       select: {
         id: true,
@@ -219,8 +236,8 @@ export async function POST(request: NextRequest) {
         discount: parseFloat(discount?.toString() || '0'),
         total: parseFloat(total.toString()),
         paymentMethod,
-        paymentChannel: paymentChannel || null,        // ✅ NOW SAVED!
-        paymentReference: paymentReference || null,    // ✅ NOW SAVED!
+        paymentChannel: paymentChannel || null,
+        paymentReference: paymentReference || null,
         amountPaid: parseFloat(amountPaid.toString()),
         change: parseFloat(change?.toString() || '0'),
         customerName: customerName || null,
@@ -230,6 +247,11 @@ export async function POST(request: NextRequest) {
         promoDiscount: validatedPromo && promoDiscount ? parseFloat(promoDiscount.toString()) : 0,
         cashierId: cashier.id,
         storeId,
+        // Kitchen Display System fields
+        orderType,
+        tableNumber: tableNumber || null,
+        kitchenStatus: 'pending',
+        sentToKitchenAt: new Date(),
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,
@@ -238,11 +260,27 @@ export async function POST(request: NextRequest) {
             price: parseFloat(item.price.toString()),
             subtotal: parseFloat(item.subtotal.toString()),
             discount: parseFloat(item.discount?.toString() || '0'),
+            notes: item.notes || null,
+            // Kitchen Display System fields
+            kitchenStation: item.kitchenStation || 'main',
+            kitchenStatus: 'pending',
+            prepTime: item.prepTime || 5,
+            modifiers: item.modifiers || [],
           })),
         },
       },
       include: {
-        items: true,
+        items: {
+          include: {
+            product: {
+              select: {
+                name: true,
+                kitchenStation: true,
+                prepTime: true,
+              },
+            },
+          },
+        },
         cashier: {
           select: {
             id: true,
@@ -256,12 +294,45 @@ export async function POST(request: NextRequest) {
     
     console.log(`[TRANSACTIONS API] Transaction created in ${Date.now() - transactionStartTime}ms | ${transaction.id} | Channel: ${transaction.paymentChannel}`);
 
+    // 🔥 REAL-TIME: Send to Kitchen Display via Pusher
+    try {
+      const pusherStartTime = Date.now();
+      
+      const kitchenOrder = {
+        id: transaction.id,
+        transactionId: transaction.id,
+        invoiceNumber: transaction.invoiceNumber,
+        status: transaction.kitchenStatus,
+        tableNumber: transaction.tableNumber,
+        customerName: transaction.customerName,
+        orderType: transaction.orderType,
+        notes: transaction.notes,
+        createdAt: transaction.createdAt,
+        items: transaction.items.map((item) => ({
+          id: item.id,
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          notes: item.notes,
+          station: item.kitchenStation || 'main',
+          status: item.kitchenStatus || 'pending',
+          prepTime: item.prepTime || 5,
+          modifiers: item.modifiers || [],
+        })),
+      };
+
+      await triggerKitchenOrder(storeId, kitchenOrder);
+      console.log(`[TRANSACTIONS API] Kitchen order sent via Pusher in ${Date.now() - pusherStartTime}ms`);
+    } catch (pusherError) {
+      console.error('[TRANSACTIONS API] Pusher error (non-critical):', pusherError);
+      // Transaction still succeeds even if pusher fails
+    }
+
     if (validatedPromo && promoDiscount > 0) {
       const promoLogStartTime = Date.now();
       
       try {
         await Promise.all([
-          // Log promo usage
           prisma.promoUsageLog.create({
             data: {
               promoId: validatedPromo.id,
@@ -275,7 +346,6 @@ export async function POST(request: NextRequest) {
             },
           }),
           
-          // Increment usage count
           prisma.promo.update({
             where: { id: validatedPromo.id },
             data: { usageCount: { increment: 1 } },
@@ -285,7 +355,6 @@ export async function POST(request: NextRequest) {
         console.log(`[TRANSACTIONS API] Promo logged in ${Date.now() - promoLogStartTime}ms | ${validatedPromo.code}`);
       } catch (promoError) {
         console.error('[TRANSACTIONS API] Error logging promo (non-critical):', promoError);
-        // Don't fail transaction if promo logging fails
       }
     }
 
@@ -301,7 +370,6 @@ export async function POST(request: NextRequest) {
         },
       }).catch((error) => {
         console.error(`[TRANSACTIONS API] Failed to update stock for product ${item.productId}:`, error);
-        // Consider if you want to rollback the transaction here
       })
     );
 
