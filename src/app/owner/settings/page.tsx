@@ -17,6 +17,9 @@ export default function SettingsPage() {
     confirm: false,
   });
   
+  // ✅ KDS State
+  const [kdsEnabled, setKdsEnabled] = useState(false);
+  
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -52,6 +55,9 @@ export default function SettingsPage() {
         primaryColor: store.primaryColor,
         logo: store.logo || '',
       });
+      
+      // ✅ Load KDS setting when store is loaded
+      loadKDSSetting();
     }
   }, [store]);
 
@@ -62,6 +68,50 @@ export default function SettingsPage() {
       setStore(data);
     } catch (error) {
       toast.error('Gagal memuat pengaturan');
+    }
+  };
+
+  // ✅ Load KDS Setting
+  const loadKDSSetting = async () => {
+    try {
+      const res = await fetch('/api/settings/kds?storeId=demo-store');
+      if (res.ok) {
+        const data = await res.json();
+        setKdsEnabled(data.enabled || false);
+      }
+    } catch (error) {
+      console.error('Failed to load KDS setting:', error);
+      setKdsEnabled(false);
+    }
+  };
+
+  // ✅ Toggle KDS
+  const handleKDSToggle = async (enabled: boolean) => {
+    try {
+      const res = await fetch('/api/settings/kds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeId: store?.id || 'demo-store',
+          enabled,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to update KDS setting');
+      }
+
+      const data = await res.json();
+      setKdsEnabled(data.enabled);
+      
+      toast.success(
+        enabled 
+          ? '✅ Kitchen Display System diaktifkan!' 
+          : '⚠️ Kitchen Display System dinonaktifkan!'
+      );
+    } catch (error) {
+      console.error('KDS toggle error:', error);
+      toast.error('Gagal mengubah pengaturan KDS');
     }
   };
 
@@ -97,7 +147,6 @@ export default function SettingsPage() {
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
       toast.error('Semua field password harus diisi!');
       return;
@@ -134,7 +183,6 @@ export default function SettingsPage() {
 
       toast.success('Password berhasil diubah!');
       
-      // Reset form
       setPasswordData({
         currentPassword: '',
         newPassword: '',
@@ -142,7 +190,6 @@ export default function SettingsPage() {
       });
       setShowPasswordSection(false);
 
-      // Logout after password change
       setTimeout(() => {
         localStorage.removeItem('owner_session');
         window.location.href = '/login';
@@ -160,7 +207,6 @@ export default function SettingsPage() {
       setBackupLoading(true);
       toast.loading('Sedang membuat backup...', { id: 'backup' });
       
-      // Call backup API endpoint
       const res = await fetch('/api/backup?storeId=demo-store');
       
       if (!res.ok) {
@@ -170,21 +216,16 @@ export default function SettingsPage() {
       
       const backup = await res.json();
       
-      console.log('Backup data:', backup); // Debug log
-      
-      // Validate backup data
       if (!backup || !backup.store) {
         throw new Error('Invalid backup data received');
       }
       
-      // Create downloadable file
       const dataStr = JSON.stringify(backup, null, 2);
       const blob = new Blob([dataStr], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       
-      // Create filename with date
       const date = new Date().toISOString().split('T')[0];
       const storeName = backup.store?.name?.replace(/\s+/g, '-') || 'toko';
       link.download = `backup-${storeName}-${date}.json`;
@@ -207,13 +248,11 @@ export default function SettingsPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.name.endsWith('.json')) {
       toast.error('File harus berformat JSON');
       return;
     }
 
-    // Confirm restore
     const confirmed = window.confirm(
       '⚠️ PERHATIAN!\n\n' +
       'Restore akan menimpa data yang ada dengan data dari backup.\n' +
@@ -222,7 +261,7 @@ export default function SettingsPage() {
     );
 
     if (!confirmed) {
-      event.target.value = ''; // Reset input
+      event.target.value = '';
       return;
     }
 
@@ -230,18 +269,13 @@ export default function SettingsPage() {
       setRestoreLoading(true);
       toast.loading('Sedang restore backup...', { id: 'restore' });
 
-      // Read file
       const fileContent = await file.text();
       const backupData = JSON.parse(fileContent);
 
-      // Validate backup data
       if (!backupData.version || !backupData.store) {
         throw new Error('File backup tidak valid');
       }
 
-      console.log('Restoring backup:', backupData.summary);
-
-      // Send to API
       const res = await fetch('/api/backup', {
         method: 'POST',
         headers: {
@@ -266,7 +300,6 @@ export default function SettingsPage() {
         { id: 'restore', duration: 5000 }
       );
 
-      // Reload data
       setTimeout(() => {
         window.location.reload();
       }, 2000);
@@ -279,7 +312,7 @@ export default function SettingsPage() {
       );
     } finally {
       setRestoreLoading(false);
-      event.target.value = ''; // Reset input
+      event.target.value = '';
     }
   };
 
@@ -498,11 +531,68 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* ✅ Kitchen Display System Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold mb-6 dark:text-white flex items-center gap-2">
+            <svg className="w-6 h-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            Kitchen Display System
+          </h2>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div className="flex-1">
+                <p className="font-semibold dark:text-white">
+                  Aktifkan Kitchen Display System (KDS)
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Tampilkan pesanan secara real-time di layar dapur untuk meningkatkan efisiensi
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleKDSToggle(!kdsEnabled)}
+                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                  kdsEnabled ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                    kdsEnabled ? 'translate-x-7' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {kdsEnabled && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">
+                  ℹ️ Informasi KDS:
+                </h3>
+                <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1 ml-4 list-disc">
+                  <li>Button "Kitchen Display System" akan muncul di halaman login</li>
+                  <li>Pesanan dari kasir akan otomatis terkirim ke KDS</li>
+                  <li>Dapur dapat melihat pesanan secara real-time</li>
+                  <li>Akses KDS: <a href="/kitchen" className="font-mono underline">/kitchen</a></li>
+                </ul>
+              </div>
+            )}
+
+            {!kdsEnabled && (
+              <div className="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  💡 Saat dinonaktifkan, button Kitchen Display tidak akan muncul di halaman login dan pesanan tidak akan dikirim ke KDS.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <h2 className="text-xl font-bold mb-6 dark:text-white">Backup & Restore</h2>
 
           <div className="space-y-4">
-            {/* Backup Section */}
             <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
               <div>
                 <p className="font-semibold dark:text-white">Backup Data</p>
@@ -521,7 +611,6 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            {/* Restore Section */}
             <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-2 border-orange-300 dark:border-orange-700">
               <div>
                 <p className="font-semibold dark:text-white flex items-center gap-2">
@@ -556,7 +645,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Info Section */}
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
               <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">
                 📋 Cara Menggunakan Backup & Restore:

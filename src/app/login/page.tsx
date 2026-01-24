@@ -22,9 +22,13 @@ export default function LoginPage() {
   const [showOwnerLogin, setShowOwnerLogin] = useState(false);
   const [ownerPassword, setOwnerPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  
+  // ✅ KDS Setting
+  const [kdsEnabled, setKdsEnabled] = useState(false);
 
   useEffect(() => {
     loadCashiers();
+    loadKDSSetting();
   }, []);
 
   const loadCashiers = async () => {
@@ -34,6 +38,20 @@ export default function LoginPage() {
       setCashiers(data);
     } catch (error) {
       console.error('Failed to load cashiers:', error);
+    }
+  };
+
+  // ✅ Load KDS Setting
+  const loadKDSSetting = async () => {
+    try {
+      const res = await fetch('/api/settings/kds?storeId=demo-store');
+      if (res.ok) {
+        const data = await res.json();
+        setKdsEnabled(data.enabled || false);
+      }
+    } catch (error) {
+      console.error('Failed to load KDS setting:', error);
+      setKdsEnabled(false);
     }
   };
 
@@ -165,7 +183,6 @@ export default function LoginPage() {
             <p className="text-sm text-gray-500">Masukkan PIN Anda</p>
           </div>
 
-          {/* PIN Display */}
           <div className="flex justify-center gap-3 mb-6">
             {[0, 1, 2, 3].map((i) => (
               <div
@@ -187,7 +204,6 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* PIN Pad */}
           <div className="grid grid-cols-3 gap-3">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
               <button
@@ -316,6 +332,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-5xl w-full">
         <div className="text-center mb-12">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Selamat Datang</h1>
           <p className="text-gray-600">Pilih profil untuk melanjutkan</p>
         </div>
 
@@ -362,7 +379,7 @@ export default function LoginPage() {
                 ))}
               </div>
 
-              <div className="border-t pt-6">
+              <div className="space-y-3">
                 <button
                   onClick={() => setShowOwnerLogin(true)}
                   className="w-full py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 font-semibold flex items-center justify-center gap-2 transition-colors"
@@ -370,6 +387,19 @@ export default function LoginPage() {
                   <Lock className="w-5 h-5" />
                   Login sebagai Owner
                 </button>
+
+                {/* ✅ Kitchen Display Button - Only if KDS enabled */}
+                {kdsEnabled && (
+                  <button
+                    onClick={() => window.location.href = '/kitchen'}
+                    className="w-full py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-semibold flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    Kitchen Display System
+                  </button>
+                )}
               </div>
             </>
           )}

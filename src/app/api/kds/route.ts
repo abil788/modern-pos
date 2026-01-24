@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { triggerOrderUpdate } from '@/lib/pusher-server';
 
 // GET - Fetch kitchen orders
 export async function GET(request: NextRequest) {
@@ -14,11 +13,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Store ID required' }, { status: 400 });
     }
 
-    const statusArray = status ? status.split(',') : ['pending', 'preparing'];
-
     const where: any = {
       storeId,
-      kitchenStatus: { in: statusArray },
+      kitchenStatus: status || { in: ['pending', 'preparing'] },
     };
 
     const transactions = await prisma.transaction.findMany({
@@ -65,7 +62,6 @@ export async function GET(request: NextRequest) {
         station: item.kitchenStation || 'main',
         status: item.kitchenStatus || 'pending',
         prepTime: item.prepTime || 5,
-        modifiers: item.modifiers || [],
       })),
     }));
 
@@ -99,19 +95,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Get transaction to find storeId
-    const transaction = await prisma.transaction.findUnique({
-      where: { id: transactionId },
-      select: { storeId: true },
-    });
-
-    if (!transaction) {
-      return NextResponse.json(
-        { error: 'Transaction not found' },
-        { status: 404 }
-      );
-    }
-
     // Update item status
     if (itemId && itemStatus) {
       await prisma.transactionItem.update({
@@ -122,12 +105,12 @@ export async function PATCH(request: NextRequest) {
       });
 
       // Check if all items are ready, then update transaction
-      const updatedTransaction = await prisma.transaction.findUnique({
+      const transaction = await prisma.transaction.findUnique({
         where: { id: transactionId },
         include: { items: true },
       });
 
-      const allReady = updatedTransaction?.items.every(
+      const allReady = transaction?.items.every(
         (item) => item.kitchenStatus === 'ready'
       );
 
@@ -139,9 +122,6 @@ export async function PATCH(request: NextRequest) {
             kitchenCompletedAt: new Date(),
           },
         });
-
-        // Trigger real-time update
-        await triggerOrderUpdate(transaction.storeId, transactionId, 'ready');
       }
     }
 
@@ -149,7 +129,7 @@ export async function PATCH(request: NextRequest) {
     if (status) {
       const updateData: any = { kitchenStatus: status };
 
-      if (status === 'preparing') {
+      if (status === 'preparing' && !updateData.kitchenStartedAt) {
         updateData.kitchenStartedAt = new Date();
       }
 
@@ -161,9 +141,6 @@ export async function PATCH(request: NextRequest) {
         where: { id: transactionId },
         data: updateData,
       });
-
-      // Trigger real-time update
-      await triggerOrderUpdate(transaction.storeId, transactionId, status);
     }
 
     return NextResponse.json({ success: true });
@@ -190,19 +167,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Update transaction to send to kitchen
-    const transaction = await prisma.transaction.update({
+    await prisma.transaction.update({
       where: { id: transactionId },
       data: {
         kitchenStatus: 'pending',
         sentToKitchenAt: new Date(),
       },
-      select: {
-        storeId: true,
-      },
     });
-
-    // Trigger real-time update
-    await triggerOrderUpdate(transaction.storeId, transactionId, 'pending');
 
     return NextResponse.json({ success: true });
   } catch (error) {

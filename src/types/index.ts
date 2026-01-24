@@ -1,3 +1,5 @@
+// src/types/index.ts
+
 export interface Store {
   id: string;
   name: string;
@@ -18,13 +20,19 @@ export interface Store {
 export interface User {
   id: string;
   username: string;
-  role: 'CASHIER' | 'OWNER' | 'ADMIN';
+  password: string;
+  pin?: string;
+  role: string;
   fullName: string;
+  photo?: string;
+  isActive: boolean;
   isLocked: boolean;
   lockedUntil?: Date;
   failedAttempts: number;
   lastLogin?: Date;
   storeId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Category {
@@ -33,6 +41,8 @@ export interface Category {
   icon?: string;
   color?: string;
   storeId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Product {
@@ -47,10 +57,13 @@ export interface Product {
   minStock: number;
   image?: string;
   categoryId?: string;
-  category?: Category;
   storeId: string;
   isActive: boolean;
-  variations?: ProductVariation[];
+  // ✅ KDS Fields
+  prepTime?: number;
+  kitchenStation?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ProductVariation {
@@ -60,38 +73,8 @@ export interface ProductVariation {
   price: number;
   stock: number;
   sku?: string;
-}
-
-export interface CartItem {
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-  discount: number;
-  subtotal: number;
-  image?: string;
-  maxStock?: number; // Added for stock validation
-}
-
-export interface Transaction {
-  id: string;
-  invoiceNumber: string;
-  subtotal: number;
-  tax: number;
-  discount: number;
-  total: number;
-  paymentMethod: 'CASH' | 'CARD' | 'QRIS' | 'TRANSFER';
-  amountPaid: number;
-  change: number;
-  customerName?: string;
-  customerPhone?: string;
-  notes?: string;
-  cashierId: string;
-  storeId: string;
-  items: TransactionItem[];
-  promoCode?: string;
-  promoDiscount: number;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface TransactionItem {
@@ -103,6 +86,71 @@ export interface TransactionItem {
   price: number;
   subtotal: number;
   discount: number;
+  notes?: string; // ✅ Item notes for customization
+  // ✅ KDS Fields
+  kitchenStation?: string;
+  kitchenStatus?: string;
+  prepTime?: number;
+  modifiers?: string[];
+  createdAt: Date;
+}
+
+export interface Transaction {
+  id: string;
+  invoiceNumber: string;
+  subtotal: number;
+  tax: number;
+  discount: number;
+  total: number;
+  paymentMethod: string;
+  paymentChannel?: string;
+  paymentReference?: string;
+  amountPaid: number;
+  change: number;
+  customerName?: string;
+  customerPhone?: string;
+  notes?: string;
+  promoCode?: string;
+  promoDiscount: number;
+  
+  // ✅ KDS Fields
+  orderType?: 'dine-in' | 'takeaway' | 'delivery';
+  tableNumber?: string;
+  kitchenStatus?: string;
+  sentToKitchenAt?: Date;
+  kitchenStartedAt?: Date;
+  kitchenCompletedAt?: Date;
+  
+  cashierId: string;
+  storeId: string;
+  isSynced: boolean;
+  isReconciled: boolean;
+  reconciledAt?: Date;
+  reconciledBy?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  items: TransactionItem[];
+  cashier?: {
+    id: string;
+    fullName: string;
+    username: string;
+    role: string;
+  };
+}
+
+export interface CashDrawer {
+  id: string;
+  storeId: string;
+  cashierId: string;
+  openingBalance: number;
+  closingBalance?: number;
+  expectedBalance?: number;
+  actualBalance?: number;
+  difference?: number;
+  notes?: string;
+  openedAt: Date;
+  closedAt?: Date;
+  status: string;
 }
 
 export interface Expense {
@@ -112,53 +160,8 @@ export interface Expense {
   description?: string;
   date: Date;
   storeId: string;
-}
-
-export interface Promo {
-  id: string;
-  name: string;
-  type: 'PERCENTAGE' | 'FIXED';
-  value: number;
-  minPurchase: number;
-  startDate: Date;
-  endDate: Date;
-  isActive: boolean;
-  productId?: string;
-}
-
-export interface DashboardStats {
-  todayRevenue: number;
-  todayTransactions: number;
-  todayProfit: number;
-  monthRevenue: number;
-  monthTransactions: number;
-  monthProfit: number;
-  lowStockProducts: number;
-  topProducts: {
-    id: string;
-    name: string;
-    totalSold: number;
-    revenue: number;
-  }[];
-  revenueChart: {
-    date: string;
-    revenue: number;
-    transactions: number;
-  }[];
-}
-
-export interface ReportFilter {
-  startDate: Date;
-  endDate: Date;
-  type: 'daily' | 'monthly' | 'custom';
-}
-
-export interface ActivityLog {
-  id: string;
-  userId: string;
-  action: string;
-  details?: string;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Promo {
@@ -166,31 +169,22 @@ export interface Promo {
   code: string;
   name: string;
   description?: string;
-  type: 'PERCENTAGE' | 'FIXED' | 'BUY_X_GET_Y';
+  type: string;
   value: number;
-  
-  // Conditions
   minPurchase: number;
   maxDiscount?: number;
   applicableCategories: string[];
   applicableProducts: string[];
-  
-  // Date & Time
   startDate: Date;
   endDate: Date;
   validDays: string[];
   validHours?: string;
-  
-  // Usage
   usageLimit?: number;
   usageCount: number;
   perCustomerLimit?: number;
-  
-  // Buy X Get Y
   buyQuantity?: number;
   getQuantity?: number;
   getProductId?: string;
-  
   isActive: boolean;
   productId?: string;
   storeId: string;
@@ -211,28 +205,30 @@ export interface PromoUsageLog {
   createdAt: Date;
 }
 
-export interface PromoValidationResult {
-  valid: boolean;
-  promo?: {
-    id: string;
-    code: string;
-    name: string;
-    type: string;
-    value: number;
-  };
-  discount: number;
-  error?: string;
-  message?: string;
+export interface Setting {
+  id: string;
+  key: string;
+  value: string;
+  storeId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
+export interface ActivityLog {
+  id: string;
+  userId: string;
+  action: string;
+  details?: string;
+  storeId: string;
+  createdAt: Date;
+}
+
+// ✅ KDS Types
 export interface KitchenOrder {
   id: string;
   transactionId: string;
   invoiceNumber: string;
-  items: KitchenOrderItem[];
   status: 'pending' | 'preparing' | 'ready' | 'completed';
-  priority: 'normal' | 'urgent';
-  station: string; // e.g., 'grill', 'fryer', 'salad', 'drinks'
   tableNumber?: string;
   customerName?: string;
   orderType: 'dine-in' | 'takeaway' | 'delivery';
@@ -240,7 +236,7 @@ export interface KitchenOrder {
   createdAt: Date;
   startedAt?: Date;
   completedAt?: Date;
-  estimatedTime: number; // in minutes
+  items: KitchenOrderItem[];
 }
 
 export interface KitchenOrderItem {
@@ -249,29 +245,73 @@ export interface KitchenOrderItem {
   productName: string;
   quantity: number;
   notes?: string;
-  modifiers?: string[];
   station: string;
   status: 'pending' | 'preparing' | 'ready';
-  prepTime: number; // in minutes
+  prepTime: number;
+  modifiers?: string[];
 }
 
-export interface KitchenStation {
+// Cart Store Types
+export interface CartItem {
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  subtotal: number;
+  discount: number;
+  image?: string;
+  maxStock?: number;
+}
+
+// Payment Types
+export interface PaymentChannel {
   id: string;
   name: string;
-  displayName: string;
-  color: string;
-  icon: string;
-  orders: KitchenOrder[];
-  isActive: boolean;
+  icon?: string;
 }
 
-export interface KDSSettings {
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  icon: any;
+  bgColor: string;
+  channels: PaymentChannel[];
+}
+
+// Report Types
+export interface DailySummary {
+  date: string;
+  totalTransactions: number;
+  totalRevenue: number;
+  totalTax: number;
+  totalDiscount: number;
+  avgTransaction: number;
+  topProducts: {
+    productId: string;
+    productName: string;
+    quantity: number;
+    revenue: number;
+  }[];
+  paymentMethods: {
+    method: string;
+    count: number;
+    total: number;
+  }[];
+}
+
+// Filter Types
+export interface DateRange {
+  startDate: Date;
+  endDate: Date;
+}
+
+export interface TransactionFilters {
   storeId: string;
-  enableSound: boolean;
-  soundVolume: number;
-  autoCompleteTime: number; // seconds
-  showCustomerName: boolean;
-  colorCodingEnabled: boolean;
-  urgentThreshold: number; // minutes
-  stations: KitchenStation[];
+  startDate?: string;
+  endDate?: string;
+  cashierId?: string;
+  paymentMethod?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
 }

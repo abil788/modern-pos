@@ -155,6 +155,27 @@ export function Receipt({
                 <span>Kasir:</span>
                 <span>{loading ? 'Loading...' : cashierName}</span>
               </div>
+              
+              {/* ✅ Order Type */}
+              {transaction.orderType && (
+                <div className="flex justify-between">
+                  <span>Tipe Order:</span>
+                  <span className="font-semibold">
+                    {transaction.orderType === 'dine-in' && '🍽️ Dine In'}
+                    {transaction.orderType === 'takeaway' && '🥡 Takeaway'}
+                    {transaction.orderType === 'delivery' && '🚗 Delivery'}
+                  </span>
+                </div>
+              )}
+              
+              {/* ✅ Table Number for Dine-In */}
+              {transaction.orderType === 'dine-in' && transaction.tableNumber && (
+                <div className="flex justify-between">
+                  <span>Nomor Meja:</span>
+                  <span className="font-bold text-blue-600">#{transaction.tableNumber}</span>
+                </div>
+              )}
+              
               {transaction.customerName && (
                 <div className="flex justify-between">
                   <span>Pelanggan:</span>
@@ -186,9 +207,9 @@ export function Receipt({
                   {transaction.items.map((item) => (
                     <tr key={item.id} className="border-b">
                       <td className="py-2">
-                        <div className="font-semibold">{item.productName}</div>
+                        <div className="font-semibold">{item.productName}</div>                        
                         {item.discount > 0 && (
-                          <div className="text-xs text-red-600">
+                          <div className="text-xs text-red-600 mt-1">
                             Diskon: -{formatCurrency(item.discount)}
                           </div>
                         )}
@@ -246,16 +267,7 @@ export function Receipt({
               )}
             </div>
 
-            {/* Notes */}
-            {transaction.notes && (
-              <>
-                <div className="border-t-2 border-dashed border-gray-300 my-4"></div>
-                <div className="text-sm">
-                  <p className="font-semibold mb-1">Catatan:</p>
-                  <p className="text-gray-600">{transaction.notes}</p>
-                </div>
-              </>
-            )}
+            
 
             <div className="border-t-2 border-dashed border-gray-300 my-4"></div>
 

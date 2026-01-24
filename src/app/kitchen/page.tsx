@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { pusherClient } from '@/lib/pusher';
 import {
   Clock,
@@ -12,9 +13,11 @@ import {
   List,
   Wifi,
   WifiOff,
+  LogOut,
+  RefreshCw,
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
-import toast from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 
 interface KitchenOrderItem {
   id: string;
@@ -46,6 +49,7 @@ interface KitchenOrder {
 const STORE_ID = 'demo-store';
 
 export default function KitchenDisplayPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<KitchenOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStation, setSelectedStation] = useState<string>('all');
@@ -57,6 +61,7 @@ export default function KitchenDisplayPage() {
   const prevOrderCountRef = useRef<number>(0);
 
   const stations = [
+    { id: 'all', name: 'All Stations', color: 'bg-blue-500' },
     { id: 'main', name: 'Main Kitchen', color: 'bg-green-500' },
   ];
 
@@ -151,6 +156,10 @@ export default function KitchenDisplayPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    router.push('/login');
   };
 
   const getElapsedTime = (createdAt: Date, startedAt?: Date) => {
@@ -263,146 +272,172 @@ export default function KitchenDisplayPage() {
   }
 
   return (
-    <div className="h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-lg border-b-4 border-blue-600">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <ChefHat className="w-8 h-8 text-blue-600" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-                  Kitchen Display System
-                </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                  {filteredOrders.length} Active Orders
-                  {isConnected ? (
-                    <span className="flex items-center gap-1 text-green-600">
-                      <Wifi className="w-4 h-4" />
-                      Live
-                    </span>
+    <>
+      <Toaster position="top-right" />
+      
+      <div className="h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
+        {/* Header */}
+        <header className="bg-white dark:bg-gray-800 shadow-lg border-b-4 border-blue-600">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <ChefHat className="w-8 h-8 text-blue-600" />
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
+                    Kitchen Display System
+                  </h1>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    {filteredOrders.length} Active Orders
+                    {isConnected ? (
+                      <span className="flex items-center gap-1 text-green-600">
+                        <Wifi className="w-4 h-4" />
+                        Live
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-red-600">
+                        <WifiOff className="w-4 h-4" />
+                        Offline
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                {/* Refresh Button */}
+                <button
+                  onClick={loadOrders}
+                  className="p-3 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  title="Refresh orders"
+                >
+                  <RefreshCw className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                </button>
+
+                {/* Sound Toggle */}
+                <button
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className="p-3 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  title="Toggle sound"
+                >
+                  {soundEnabled ? (
+                    <Volume2 className="w-6 h-6 text-blue-600" />
                   ) : (
-                    <span className="flex items-center gap-1 text-red-600">
-                      <WifiOff className="w-4 h-4" />
-                      Offline
-                    </span>
+                    <VolumeX className="w-6 h-6 text-gray-400" />
                   )}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {/* Sound Toggle */}
-              <button
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className="p-3 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
-              >
-                {soundEnabled ? (
-                  <Volume2 className="w-6 h-6 text-blue-600" />
-                ) : (
-                  <VolumeX className="w-6 h-6 text-gray-400" />
-                )}
-              </button>
-
-              {/* View Mode Toggle */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-3 rounded-lg ${
-                    viewMode === 'grid'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                  }`}
-                >
-                  <Grid className="w-6 h-6" />
                 </button>
+
+                {/* View Mode Toggle */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-3 rounded-lg ${
+                      viewMode === 'grid'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}
+                    title="Grid view"
+                  >
+                    <Grid className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-3 rounded-lg ${
+                      viewMode === 'list'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}
+                    title="List view"
+                  >
+                    <List className="w-6 h-6" />
+                  </button>
+                </div>
+
+                {/* ✅ Logout Button */}
                 <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-3 rounded-lg ${
-                    viewMode === 'list'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                  }`}
+                  onClick={handleLogout}
+                  className="px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 font-semibold transition-colors"
+                  title="Back to login"
                 >
-                  <List className="w-6 h-6" />
+                  <LogOut className="w-5 h-5" />
+                  Keluar
                 </button>
               </div>
             </div>
-          </div>
 
-          {/* Station Filter */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {stations.map((station) => {
-              const count =
-                station.id === 'all'
-                  ? orders.length
-                  : orders.filter((o) =>
-                      o.items.some((i) => i.station === station.id)
-                    ).length;
+            {/* Station Filter */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {stations.map((station) => {
+                const count =
+                  station.id === 'all'
+                    ? orders.length
+                    : orders.filter((o) =>
+                        o.items.some((i) => i.station === station.id)
+                      ).length;
 
-              return (
-                <button
-                  key={station.id}
-                  onClick={() => setSelectedStation(station.id)}
-                  className={`px-4 py-2 rounded-lg whitespace-nowrap font-semibold transition-all ${
-                    selectedStation === station.id
-                      ? `${station.color} text-white shadow-lg`
-                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {station.name} ({count})
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={station.id}
+                    onClick={() => setSelectedStation(station.id)}
+                    className={`px-4 py-2 rounded-lg whitespace-nowrap font-semibold transition-all ${
+                      selectedStation === station.id
+                        ? `${station.color} text-white shadow-lg`
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {station.name} ({count})
+                  </button>
+                );
+              })}
+            </div>
           </div>
+        </header>
+
+        {/* Orders Display */}
+        <div className="flex-1 overflow-auto p-6">
+          {filteredOrders.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-gray-400">
+                <ChefHat className="w-20 h-20 mx-auto mb-4 opacity-50" />
+                <p className="text-xl">No active orders</p>
+                <p className="text-sm mt-2">New orders will appear here in real-time</p>
+              </div>
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredOrders.map((order) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  onStart={handleStartOrder}
+                  onCompleteItem={handleCompleteItem}
+                  onComplete={handleCompleteOrder}
+                  getElapsedTime={getElapsedTime}
+                  getOrderColor={getOrderColor}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4 max-w-4xl mx-auto">
+              {filteredOrders.map((order) => (
+                <OrderListItem
+                  key={order.id}
+                  order={order}
+                  onStart={handleStartOrder}
+                  onCompleteItem={handleCompleteItem}
+                  onComplete={handleCompleteOrder}
+                  getElapsedTime={getElapsedTime}
+                  getOrderColor={getOrderColor}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      </header>
-
-      {/* Orders Display */}
-      <div className="flex-1 overflow-auto p-6">
-        {filteredOrders.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center text-gray-400">
-              <ChefHat className="w-20 h-20 mx-auto mb-4 opacity-50" />
-              <p className="text-xl">No active orders</p>
-              <p className="text-sm mt-2">New orders will appear here in real-time</p>
-            </div>
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredOrders.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                onStart={handleStartOrder}
-                onCompleteItem={handleCompleteItem}
-                onComplete={handleCompleteOrder}
-                getElapsedTime={getElapsedTime}
-                getOrderColor={getOrderColor}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4 max-w-4xl mx-auto">
-            {filteredOrders.map((order) => (
-              <OrderListItem
-                key={order.id}
-                order={order}
-                onStart={handleStartOrder}
-                onCompleteItem={handleCompleteItem}
-                onComplete={handleCompleteOrder}
-                getElapsedTime={getElapsedTime}
-                getOrderColor={getOrderColor}
-              />
-            ))}
-          </div>
-        )}
       </div>
-    </div>
+    </>
   );
 }
 
-// Order Card Component (same as before)
+// ✅ Order Card Component - Updated dengan Item Notes
 function OrderCard({ order, onStart, onCompleteItem, onComplete, getElapsedTime, getOrderColor }: any) {
   const elapsed = getElapsedTime(order.createdAt, order.startedAt);
   const allItemsReady = order.items.every((item: any) => item.status === 'ready');
@@ -415,9 +450,9 @@ function OrderCard({ order, onStart, onCompleteItem, onComplete, getElapsedTime,
             {order.invoiceNumber}
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {order.orderType === 'dine-in' && `Table ${order.tableNumber || '-'}`}
-            {order.orderType === 'takeaway' && 'Takeaway'}
-            {order.orderType === 'delivery' && 'Delivery'}
+            {order.orderType === 'dine-in' && `🍽️ Table ${order.tableNumber || '-'}`}
+            {order.orderType === 'takeaway' && '🥡 Takeaway'}
+            {order.orderType === 'delivery' && '🚗 Delivery'}
           </p>
           {order.customerName && (
             <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -440,6 +475,7 @@ function OrderCard({ order, onStart, onCompleteItem, onComplete, getElapsedTime,
         </div>
       </div>
 
+      {/* ✅ Items with Notes */}
       <div className="space-y-2 mb-4">
         {order.items.map((item: any) => (
           <div
@@ -455,16 +491,22 @@ function OrderCard({ order, onStart, onCompleteItem, onComplete, getElapsedTime,
                 <p className="font-semibold dark:text-white">
                   {item.quantity}x {item.productName}
                 </p>
+                
+                {/* ✅ Item Notes - Customer Customization */}
+                {item.notes && (
+                  <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded">
+                    <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">
+                      📝 {item.notes}
+                    </p>
+                  </div>
+                )}
+                
                 {item.modifiers && item.modifiers.length > 0 && (
                   <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                     {item.modifiers.join(', ')}
                   </p>
                 )}
-                {item.notes && (
-                  <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                    Note: {item.notes}
-                  </p>
-                )}
+                
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {item.station} • {item.prepTime}min
                 </p>
@@ -489,14 +531,16 @@ function OrderCard({ order, onStart, onCompleteItem, onComplete, getElapsedTime,
         ))}
       </div>
 
+      {/* Order Notes */}
       {order.notes && (
         <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
           <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
-            Note: {order.notes}
+            📌 Note: {order.notes}
           </p>
         </div>
       )}
 
+      {/* Action Buttons */}
       <div className="flex gap-2">
         {order.status === 'pending' ? (
           <button
@@ -522,7 +566,7 @@ function OrderCard({ order, onStart, onCompleteItem, onComplete, getElapsedTime,
   );
 }
 
-// Order List Item (similar structure)
+// ✅ Order List Item - Updated dengan Item Notes
 function OrderListItem({ order, onStart, onCompleteItem, onComplete, getElapsedTime, getOrderColor }: any) {
   const elapsed = getElapsedTime(order.createdAt, order.startedAt);
   const allItemsReady = order.items.every((item: any) => item.status === 'ready');
@@ -549,9 +593,9 @@ function OrderListItem({ order, onStart, onCompleteItem, onComplete, getElapsedT
               {order.invoiceNumber}
             </h3>
             <p className="text-gray-500 dark:text-gray-400">
-              {order.orderType === 'dine-in' && `Table ${order.tableNumber || '-'}`}
-              {order.orderType === 'takeaway' && 'Takeaway'}
-              {order.orderType === 'delivery' && 'Delivery'}
+              {order.orderType === 'dine-in' && `🍽️ Table ${order.tableNumber || '-'}`}
+              {order.orderType === 'takeaway' && '🥡 Takeaway'}
+              {order.orderType === 'delivery' && '🚗 Delivery'}
               {order.customerName && ` • ${order.customerName}`}
             </p>
           </div>
@@ -577,44 +621,58 @@ function OrderListItem({ order, onStart, onCompleteItem, onComplete, getElapsedT
           )}
         </div>
 
+        {/* ✅ Items Grid with Notes */}
         <div className="grid grid-cols-2 gap-3">
           {order.items.map((item: any) => (
             <div
               key={item.id}
-              className={`p-3 rounded-lg flex items-center justify-between ${
+              className={`p-3 rounded-lg ${
                 item.status === 'ready'
                   ? 'bg-green-100 dark:bg-green-900/30'
                   : 'bg-gray-50 dark:bg-gray-700'
               }`}
             >
-              <div>
+              <div className="flex items-center justify-between mb-2">
                 <p className="font-semibold dark:text-white">
                   {item.quantity}x {item.productName}
                 </p>
-                {item.notes && (
-                  <p className="text-xs text-red-600 dark:text-red-400">
-                    {item.notes}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={() => onCompleteItem(order.id, item.id)}
-                disabled={item.status === 'ready'}
-                className={`p-2 rounded-lg ${
-                  item.status === 'ready'
-                    ? 'bg-green-500'
-                    : 'bg-white dark:bg-gray-600 hover:bg-green-50'
-                }`}
-              >
-                <CheckCircle
-                  className={`w-5 h-5 ${
-                    item.status === 'ready' ? 'text-white' : 'text-gray-400'
+                <button
+                  onClick={() => onCompleteItem(order.id, item.id)}
+                  disabled={item.status === 'ready'}
+                  className={`p-2 rounded-lg ${
+                    item.status === 'ready'
+                      ? 'bg-green-500'
+                      : 'bg-white dark:bg-gray-600 hover:bg-green-50'
                   }`}
-                />
-              </button>
+                >
+                  <CheckCircle
+                    className={`w-5 h-5 ${
+                      item.status === 'ready' ? 'text-white' : 'text-gray-400'
+                    }`}
+                  />
+                </button>
+              </div>
+              
+              {/* ✅ Item Notes */}
+              {item.notes && (
+                <div className="mb-2 p-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded">
+                  <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">
+                    📝 {item.notes}
+                  </p>
+                </div>
+              )}
             </div>
           ))}
         </div>
+
+        {/* Order Notes */}
+        {order.notes && (
+          <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
+              📌 {order.notes}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

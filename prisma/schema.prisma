@@ -97,7 +97,7 @@ model Product {
   
   // Kitchen Display System
   prepTime       Int?    @default(5) // Preparation time in minutes
-  kitchenStation String? @default("main") // 'main' | 'grill' | 'fryer' | 'salad' | 'drinks'
+  kitchenStation String? @default("main") 
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -191,11 +191,11 @@ model TransactionItem {
   notes         String?
   
   // Kitchen Display System fields
-  kitchenStation String?  @default("main") // 'main' | 'grill' | 'fryer' | 'salad' | 'drinks'
-  kitchenStatus  String?  @default("pending") // 'pending' | 'preparing' | 'ready'
+  kitchenStation String?  @default("main") 
+  kitchenStatus  String?  @default("pending") 
   prepTime       Int?     @default(5) // in minutes
-  modifiers      String[] @default([]) // e.g., ["No ice", "Extra spicy"]
-  
+  modifiers      String[] @default([]) 
+
   createdAt     DateTime @default(now())
 
   transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)

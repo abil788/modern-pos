@@ -1,7 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Scan, ShoppingCart, Trash2, User, Package } from "lucide-react";
+import {
+  Search,
+  Scan,
+  ShoppingCart,
+  Trash2,
+  User,
+  Package,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cartStore";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -9,7 +16,7 @@ import { Product, Category, Transaction } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { BarcodeScanner } from "@/components/kasir/BarcodeScanner";
 import { Receipt } from "@/components/shared/Receipt";
-import { EnhancedCheckout } from '@/components/kasir/EnhancedCheckout';
+import { EnhancedCheckout } from "@/components/kasir/EnhancedCheckout";
 import { NotificationBanner } from "@/components/shared/NotificationBanner";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import toast, { Toaster } from "react-hot-toast";
@@ -22,7 +29,8 @@ export default function KasirPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showScanner, setShowScanner] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [completedTransaction, setCompletedTransaction] = useState<Transaction | null>(null);
+  const [completedTransaction, setCompletedTransaction] =
+    useState<Transaction | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
 
   const [currentCashier, setCurrentCashier] = useState<{
@@ -116,7 +124,7 @@ export default function KasirPage() {
   const loadProducts = async () => {
     try {
       const res = await fetch(
-        `/api/products?storeId=${store?.id || "demo-store"}&limit=1000`
+        `/api/products?storeId=${store?.id || "demo-store"}&limit=1000`,
       );
       const data = await res.json();
 
@@ -137,7 +145,7 @@ export default function KasirPage() {
   const loadCategories = async () => {
     try {
       const res = await fetch(
-        `/api/categories?storeId=${store?.id || "demo-store"}`
+        `/api/categories?storeId=${store?.id || "demo-store"}`,
       );
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
@@ -175,7 +183,7 @@ export default function KasirPage() {
   const handleScanBarcode = async (barcode: string) => {
     try {
       const res = await fetch(
-        `/api/products?storeId=${store?.id || "demo-store"}&barcode=${barcode}`
+        `/api/products?storeId=${store?.id || "demo-store"}&barcode=${barcode}`,
       );
       const data = await res.json();
 
@@ -198,7 +206,7 @@ export default function KasirPage() {
 
   const handleQuantityInputStart = (
     productId: string,
-    currentQuantity: number
+    currentQuantity: number,
   ) => {
     setEditingQuantity(productId);
     setQuantityInput(currentQuantity.toString());
@@ -391,8 +399,8 @@ export default function KasirPage() {
                           isOutOfStock
                             ? "text-red-600 dark:text-red-400"
                             : product.stock <= product.minStock
-                            ? "text-orange-600 dark:text-orange-400"
-                            : "text-gray-500 dark:text-gray-400"
+                              ? "text-orange-600 dark:text-orange-400"
+                              : "text-gray-500 dark:text-gray-400"
                         }`}
                       >
                         Stok: {product.stock}
@@ -464,14 +472,14 @@ export default function KasirPage() {
                               onBlur={() =>
                                 handleQuantityInputBlur(
                                   item.productId,
-                                  maxStock
+                                  maxStock,
                                 )
                               }
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
                                   handleQuantityInputSubmit(
                                     item.productId,
-                                    maxStock
+                                    maxStock,
                                   );
                                 } else if (e.key === "Escape") {
                                   setEditingQuantity(null);
@@ -485,7 +493,7 @@ export default function KasirPage() {
                               onClick={() =>
                                 handleQuantityInputStart(
                                   item.productId,
-                                  item.quantity
+                                  item.quantity,
                                 )
                               }
                               className="w-16 text-center font-semibold dark:text-white hover:bg-gray-200 dark:hover:bg-gray-600 rounded py-1"
@@ -564,68 +572,70 @@ export default function KasirPage() {
         onClose={() => setShowScanner(false)}
         onScan={handleScanBarcode}
       />
-        <EnhancedCheckout
-          isOpen={showCheckout}
-          onClose={() => setShowCheckout(false)}
-          subtotal={subtotal}
-          tax={tax}
-          total={total}
-          items={items}
-          currentCashier={currentCashier}
-          products={products}
-          storeId={store?.id || 'demo-store'}
-          onComplete={async (paymentData) => {
-            const transactionData = {
-              items: items.map((item) => {
-                const product = products.find(p => p.id === item.productId);
-                return {
-                  productId: item.productId,
-                  name: item.name,
-                  quantity: item.quantity,
-                  price: item.price,
-                  subtotal: item.subtotal,
-                  discount: item.discount || 0,
-                };
-              }),
-              subtotal,
-              tax,
-              discount: paymentData.promoDiscount || 0,
-              total: total - (paymentData.promoDiscount || 0),
-              paymentMethod: paymentData.paymentMethod,
-              paymentChannel: paymentData.paymentChannel,
-              amountPaid: paymentData.amountPaid,
-              change: paymentData.change,
-              customerName: paymentData.customerName,
-              customerPhone: paymentData.customerPhone,
-              notes: paymentData.notes,
-              promoCode: paymentData.promoCode,
-              promoDiscount: paymentData.promoDiscount || 0,
-              storeId: store?.id || 'demo-store',
-              cashierId: currentCashier.id,
-              
-              // Kitchen Display System fields
-              orderType: paymentData.orderType,
-              tableNumber: paymentData.tableNumber,
-            };
+      <EnhancedCheckout
+        isOpen={showCheckout}
+        onClose={() => setShowCheckout(false)}
+        subtotal={subtotal}
+        tax={tax}
+        total={total}
+        items={items}
+        currentCashier={currentCashier}
+        products={products}
+        storeId={store?.id || "demo-store"}
+        onComplete={async (paymentData) => {
+          const transactionData = {
+            items: items.map((item) => {
+              const product = products.find((p) => p.id === item.productId);
+              return {
+                productId: item.productId,
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                subtotal: item.subtotal,
+                discount: item.discount || 0,
+                // ✅ Include item notes from checkout
+                notes: paymentData.itemNotes?.[item.productId] || undefined,
+              };
+            }),
+            subtotal,
+            tax,
+            discount: paymentData.promoDiscount || 0,
+            total: total - (paymentData.promoDiscount || 0),
+            paymentMethod: paymentData.paymentMethod,
+            paymentChannel: paymentData.paymentChannel,
+            amountPaid: paymentData.amountPaid,
+            change: paymentData.change,
+            customerName: paymentData.customerName,
+            customerPhone: paymentData.customerPhone,
+            notes: paymentData.notes,
+            promoCode: paymentData.promoCode,
+            promoDiscount: paymentData.promoDiscount || 0,
+            storeId: store?.id || "demo-store",
+            cashierId: currentCashier.id,
 
-            const res = await fetch('/api/transactions', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(transactionData),
-            });
+            // Kitchen Display System fields
+            orderType: paymentData.orderType,
+            tableNumber: paymentData.tableNumber,
+          };
 
-            if (!res.ok) throw new Error('Failed to create transaction');
+          const res = await fetch("/api/transactions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(transactionData),
+          });
 
-            const transaction = await res.json();
-            toast.success('Transaksi berhasil!');
-            
-            setCompletedTransaction(transaction);
-            setShowCheckout(false);
-            setShowReceipt(true);
-            clearCart();
-            loadProducts();
-          }}
-        />
+          if (!res.ok) throw new Error("Failed to create transaction");
+
+          const transaction = await res.json();
+          toast.success("Transaksi berhasil!");
+
+          setCompletedTransaction(transaction);
+          setShowCheckout(false);
+          setShowReceipt(true);
+          clearCart();
+          loadProducts();
+        }}
+      />
 
       {completedTransaction && (
         <Receipt

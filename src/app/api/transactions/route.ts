@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const storeId = searchParams.get('storeId');
-    const cashierId = searchParams.get('cashierId'); // Filter by cashier
+    const cashierId = searchParams.get('cashierId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const search = searchParams.get('search'); 
@@ -17,15 +17,12 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
 
-    // Validation
     if (!storeId) {
       return NextResponse.json({ error: 'Store ID required' }, { status: 400 });
     }
 
-    // Build WHERE clause
     const where: any = { storeId };
 
-    // Filter by cashier if provided
     if (cashierId) {
       where.cashierId = cashierId;
     }
@@ -39,24 +36,9 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       where.OR = [
-        {
-          invoiceNumber: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          customerName: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
-        {
-          customerPhone: {
-            contains: search,
-            mode: 'insensitive',
-          },
-        },
+        { invoiceNumber: { contains: search, mode: 'insensitive' } },
+        { customerName: { contains: search, mode: 'insensitive' } },
+        { customerPhone: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -74,29 +56,21 @@ export async function GET(request: NextRequest) {
             },
           },
         },
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy: { createdAt: 'desc' },
         take: limit,
         skip: offset,
       }),
-      
-      // Get total count
       prisma.transaction.count({ where }),
-      
-      // Get aggregated stats (more efficient than fetching all records)
       prisma.transaction.aggregate({
         where,
-        _sum: {
-          total: true,
-        },
+        _sum: { total: true },
       }),
     ]);
 
     const totalRevenue = stats._sum.total || 0;
     const avgTransaction = totalCount > 0 ? totalRevenue / totalCount : 0;
-
     const queryTime = Date.now() - startTime;
+
     console.log(`[TRANSACTIONS API] GET Query took: ${queryTime}ms | Transactions: ${transactions.length} | Page: ${page}${search ? ` | Search: "${search}"` : ''}`);
 
     return NextResponse.json({
@@ -107,8 +81,8 @@ export async function GET(request: NextRequest) {
         total: totalCount,
         totalPages: Math.ceil(totalCount / limit),
         hasMore: offset + transactions.length < totalCount,
-        totalRevenue,     
-        avgTransaction,    
+        totalRevenue,
+        avgTransaction,
       },
       performance: {
         queryTime: `${queryTime}ms`,
@@ -139,7 +113,7 @@ export async function POST(request: NextRequest) {
       customerPhone,
       notes,
       storeId,
-      promoCode,        
+      promoCode,
       promoDiscount,
       cashierId,
       paymentChannel,
@@ -152,10 +126,12 @@ export async function POST(request: NextRequest) {
     console.log(`[TRANSACTIONS API] Processing transaction | Store: ${storeId} | Cashier: ${cashierId}`);
     console.log(`[TRANSACTIONS API] Payment: ${paymentMethod} | Channel: ${paymentChannel || 'default'}`);
     console.log(`[TRANSACTIONS API] Order Type: ${orderType}${tableNumber ? ` | Table: ${tableNumber}` : ''}`);
+    
     if (promoCode) {
       console.log(`[TRANSACTIONS API] Promo applied: ${promoCode} | Discount: ${promoDiscount}`);
     }
 
+    // Validation
     if (!items || items.length === 0) {
       return NextResponse.json(
         { error: 'At least one item is required' },
@@ -177,6 +153,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ✅ Check if KDS is enabled
+    const kdsCheckStartTime = Date.now();
+    let kdsEnabled = false;
+    
+    try {
+      const kdsSetting = await prisma.setting.findUnique({
+        where: {
+          storeId_key: {
+            storeId,
+            key: 'kds_enabled',
+          },
+        },
+      });
+      kdsEnabled = kdsSetting?.value === 'true';
+      console.log(`[TRANSACTIONS API] KDS Status checked in ${Date.now() - kdsCheckStartTime}ms | ${kdsEnabled ? 'ENABLED ✅' : 'DISABLED ❌'}`);
+    } catch (error) {
+      console.warn('⚠️ Failed to check KDS setting, defaulting to disabled:', error);
+      kdsEnabled = false;
+    }
+
+    // Verify cashier
     const cashierStartTime = Date.now();
     const cashier = await prisma.user.findFirst({
       where: { 
@@ -201,6 +198,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`[TRANSACTIONS API] Cashier verified in ${Date.now() - cashierStartTime}ms | ${cashier.fullName}`);
 
+    // Validate promo code
     let validatedPromo = null;
     if (promoCode) {
       const promoStartTime = Date.now();
@@ -222,10 +220,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Generate invoice number
     const invoiceStartTime = Date.now();
     const invoiceNumber = await generateInvoiceNumber(storeId);
     console.log(`[TRANSACTIONS API] Invoice generated in ${Date.now() - invoiceStartTime}ms | ${invoiceNumber}`);
 
+    // Create transaction
     const transactionStartTime = Date.now();
     
     const transaction = await prisma.transaction.create({
@@ -247,11 +247,13 @@ export async function POST(request: NextRequest) {
         promoDiscount: validatedPromo && promoDiscount ? parseFloat(promoDiscount.toString()) : 0,
         cashierId: cashier.id,
         storeId,
-        // Kitchen Display System fields
-        orderType,
-        tableNumber: tableNumber || null,
-        kitchenStatus: 'pending',
-        sentToKitchenAt: new Date(),
+        
+        // ✅ Kitchen Display System fields - Only set if KDS enabled
+        orderType: kdsEnabled ? orderType : null,
+        tableNumber: kdsEnabled && tableNumber ? tableNumber : null,
+        kitchenStatus: kdsEnabled ? 'pending' : null,
+        sentToKitchenAt: kdsEnabled ? new Date() : null,
+        
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,
@@ -260,12 +262,13 @@ export async function POST(request: NextRequest) {
             price: parseFloat(item.price.toString()),
             subtotal: parseFloat(item.subtotal.toString()),
             discount: parseFloat(item.discount?.toString() || '0'),
-            notes: item.notes || null,
-            // Kitchen Display System fields
-            kitchenStation: item.kitchenStation || 'main',
-            kitchenStatus: 'pending',
-            prepTime: item.prepTime || 5,
-            modifiers: item.modifiers || [],
+            notes: item.notes || null, // ✅ Item notes from checkout
+            
+            // ✅ Kitchen Display System item fields - Only if KDS enabled
+            kitchenStation: kdsEnabled ? (item.kitchenStation || 'main') : null,
+            kitchenStatus: kdsEnabled ? 'pending' : null,
+            prepTime: kdsEnabled ? (item.prepTime || 5) : null,
+            modifiers: kdsEnabled ? (item.modifiers || []) : [],
           })),
         },
       },
@@ -294,40 +297,45 @@ export async function POST(request: NextRequest) {
     
     console.log(`[TRANSACTIONS API] Transaction created in ${Date.now() - transactionStartTime}ms | ${transaction.id} | Channel: ${transaction.paymentChannel}`);
 
-    // 🔥 REAL-TIME: Send to Kitchen Display via Pusher
-    try {
-      const pusherStartTime = Date.now();
-      
-      const kitchenOrder = {
-        id: transaction.id,
-        transactionId: transaction.id,
-        invoiceNumber: transaction.invoiceNumber,
-        status: transaction.kitchenStatus,
-        tableNumber: transaction.tableNumber,
-        customerName: transaction.customerName,
-        orderType: transaction.orderType,
-        notes: transaction.notes,
-        createdAt: transaction.createdAt,
-        items: transaction.items.map((item) => ({
-          id: item.id,
-          productId: item.productId,
-          productName: item.productName,
-          quantity: item.quantity,
-          notes: item.notes,
-          station: item.kitchenStation || 'main',
-          status: item.kitchenStatus || 'pending',
-          prepTime: item.prepTime || 5,
-          modifiers: item.modifiers || [],
-        })),
-      };
+    // ✅ Send to Kitchen Display ONLY if KDS is enabled
+    if (kdsEnabled) {
+      try {
+        const pusherStartTime = Date.now();
+        
+        const kitchenOrder = {
+          id: transaction.id,
+          transactionId: transaction.id,
+          invoiceNumber: transaction.invoiceNumber,
+          status: transaction.kitchenStatus,
+          tableNumber: transaction.tableNumber,
+          customerName: transaction.customerName,
+          orderType: transaction.orderType,
+          notes: transaction.notes,
+          createdAt: transaction.createdAt,
+          items: transaction.items.map((item) => ({
+            id: item.id,
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            notes: item.notes, // ✅ Item notes
+            station: item.kitchenStation || 'main',
+            status: item.kitchenStatus || 'pending',
+            prepTime: item.prepTime || 5,
+            modifiers: item.modifiers || [],
+          })),
+        };
 
-      await triggerKitchenOrder(storeId, kitchenOrder);
-      console.log(`[TRANSACTIONS API] Kitchen order sent via Pusher in ${Date.now() - pusherStartTime}ms`);
-    } catch (pusherError) {
-      console.error('[TRANSACTIONS API] Pusher error (non-critical):', pusherError);
-      // Transaction still succeeds even if pusher fails
+        await triggerKitchenOrder(storeId, kitchenOrder);
+        console.log(`[TRANSACTIONS API] ✅ Kitchen order sent via Pusher in ${Date.now() - pusherStartTime}ms`);
+      } catch (pusherError) {
+        console.error('[TRANSACTIONS API] ⚠️ Pusher error (non-critical):', pusherError);
+        // Transaction still succeeds even if pusher fails
+      }
+    } else {
+      console.log('[TRANSACTIONS API] ⏭️ Skipping kitchen order send (KDS disabled)');
     }
 
+    // Log promo usage
     if (validatedPromo && promoDiscount > 0) {
       const promoLogStartTime = Date.now();
       
@@ -358,6 +366,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Update product stock
     const stockStartTime = Date.now();
     
     const stockUpdates = items.map((item: any) =>
@@ -384,11 +393,13 @@ export async function POST(request: NextRequest) {
       performance: {
         totalTime: `${totalTime}ms`,
         breakdown: {
+          kdsCheck: `${Date.now() - kdsCheckStartTime}ms`,
           cashierVerification: `${Date.now() - cashierStartTime}ms`,
           invoiceGeneration: `${Date.now() - invoiceStartTime}ms`,
           transactionCreation: `${Date.now() - transactionStartTime}ms`,
           stockUpdate: `${Date.now() - stockStartTime}ms`,
         },
+        kdsEnabled,
       },
     }, { status: 201 });
 
@@ -401,6 +412,35 @@ export async function POST(request: NextRequest) {
         error: error.message || 'Failed to create transaction',
         details: process.env.NODE_ENV === 'development' ? error.stack : undefined 
       },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - For admin/testing purposes
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Transaction ID is required' },
+        { status: 400 }
+      );
+    }
+
+    await prisma.transaction.delete({
+      where: { id },
+    });
+
+    console.log(`[TRANSACTIONS API] Transaction deleted: ${id}`);
+
+    return NextResponse.json({ success: true, message: 'Transaction deleted' });
+  } catch (error: any) {
+    console.error('[TRANSACTIONS API] DELETE Error:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete transaction' },
       { status: 500 }
     );
   }

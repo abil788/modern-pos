@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Tag, UtensilsCrossed } from 'lucide-react';
+import { X, Tag, UtensilsCrossed, MessageSquare } from 'lucide-react';
 import { PAYMENT_METHODS } from '@/lib/payment-config';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -43,6 +43,10 @@ export function EnhancedCheckout({
   const [orderType, setOrderType] = useState<'dine-in' | 'takeaway' | 'delivery'>('dine-in');
   const [tableNumber, setTableNumber] = useState('');
   
+  // ✅ Item notes for customization
+  const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
+  const [editingItemNote, setEditingItemNote] = useState<string | null>(null);
+  
   // Promo state
   const [promoCode, setPromoCode] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
@@ -64,6 +68,8 @@ export function EnhancedCheckout({
       setAppliedPromo(null);
       setPromoDiscount(0);
       setValidatingPromo(false);
+      setItemNotes({});
+      setEditingItemNote(null);
     }
   }, [isOpen]);
 
@@ -78,7 +84,6 @@ export function EnhancedCheckout({
     setSelectedMethod(methodId);
     setSelectedChannel(PAYMENT_METHODS[methodId].channels[0].id);
     
-    // Auto-fill amount for non-cash
     if (methodId !== 'CASH') {
       setAmountPaid(finalTotal.toString());
     } else {
@@ -122,7 +127,6 @@ export function EnhancedCheckout({
         setPromoDiscount(result.discount);
         toast.success(result.message, { duration: 4000 });
         
-        // Update amount if non-cash
         if (selectedMethod !== 'CASH') {
           setAmountPaid((total - result.discount).toString());
         }
@@ -146,7 +150,6 @@ export function EnhancedCheckout({
     setPromoDiscount(0);
     setPromoCode('');
     
-    // Update amount if non-cash
     if (selectedMethod !== 'CASH') {
       setAmountPaid(total.toString());
     }
@@ -155,13 +158,11 @@ export function EnhancedCheckout({
   };
 
   const handleSubmit = () => {
-    // Validation
     if (selectedMethod === 'CASH' && paid < finalTotal) {
       toast.error('Jumlah bayar kurang!');
       return;
     }
 
-    // Validate table number for dine-in
     if (orderType === 'dine-in' && !tableNumber.trim()) {
       toast.error('Nomor meja harus diisi untuk Dine In!');
       return;
@@ -177,9 +178,10 @@ export function EnhancedCheckout({
       notes: notes || undefined,
       promoCode: appliedPromo ? appliedPromo.code : undefined,
       promoDiscount,
-      // Kitchen Display System fields
       orderType,
       tableNumber: orderType === 'dine-in' ? tableNumber : undefined,
+      // ✅ Send item notes
+      itemNotes,
     };
 
     onComplete(paymentData);
@@ -266,18 +268,70 @@ export function EnhancedCheckout({
             </div>
           )}
 
-          {/* Order Summary */}
+          {/* ✅ Order Summary with Item Notes */}
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <h3 className="font-semibold mb-3 dark:text-white">Ringkasan Pesanan</h3>
-            <div className="space-y-2 text-sm max-h-40 overflow-y-auto">
+            <h3 className="font-semibold mb-3 dark:text-white flex items-center gap-2">
+              <MessageSquare className="w-4 h-4" />
+              Ringkasan Pesanan & Catatan
+            </h3>
+            <div className="space-y-3 max-h-60 overflow-y-auto">
               {items.map((item) => (
-                <div key={item.productId} className="flex justify-between dark:text-gray-300">
-                  <span>{item.name} x{item.quantity}</span>
-                  <span>{formatCurrency(item.subtotal)}</span>
+                <div key={item.productId} className="bg-white dark:bg-gray-800 rounded-lg p-3 border dark:border-gray-600">
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium dark:text-white">
+                      {item.name} x{item.quantity}
+                    </span>
+                    <span className="font-semibold dark:text-white">
+                      {formatCurrency(item.subtotal)}
+                    </span>
+                  </div>
+                  
+                  {/* Item Note Input */}
+                  {editingItemNote === item.productId ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={itemNotes[item.productId] || ''}
+                        onChange={(e) => setItemNotes({ ...itemNotes, [item.productId]: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') setEditingItemNote(null);
+                          if (e.key === 'Escape') setEditingItemNote(null);
+                        }}
+                        placeholder="Contoh: Tanpa es, Extra pedas"
+                        className="flex-1 px-3 py-2 text-sm border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEditingItemNote(null)}
+                        className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                      >
+                        ✓
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEditingItemNote(item.productId)}
+                      className="w-full text-left px-3 py-2 text-sm bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                    >
+                      {itemNotes[item.productId] ? (
+                        <span className="text-blue-600 dark:text-blue-400">
+                          📝 {itemNotes[item.productId]}
+                        </span>
+                      ) : (
+                        <span className="text-gray-500 dark:text-gray-400">
+                          + Tambah catatan (tanpa es, extra pedas, dll)
+                        </span>
+                      )}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
-            <div className="border-t dark:border-gray-600 pt-2 mt-2 space-y-1">
+            
+            {/* Total Summary */}
+            <div className="border-t dark:border-gray-600 pt-3 mt-3 space-y-1">
               <div className="flex justify-between dark:text-gray-300">
                 <span>Subtotal:</span>
                 <span>{formatCurrency(subtotal)}</span>
@@ -494,12 +548,12 @@ export function EnhancedCheckout({
           {/* Notes */}
           <div>
             <label className="block text-sm font-semibold mb-1 dark:text-white">
-              Catatan
+              Catatan Pesanan
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Catatan tambahan..."
+              placeholder="Catatan tambahan untuk seluruh pesanan..."
               className="w-full p-2 border dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
               rows={2}
             />

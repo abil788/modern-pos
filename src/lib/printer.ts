@@ -1,3 +1,4 @@
+// src/lib/printer.ts
 import { Transaction } from '@/types';
 import { formatCurrency, formatDateTime } from './utils';
 
@@ -127,6 +128,12 @@ export function generateReceiptHtml(
           word-wrap: break-word;
         }
         
+        .item-note {
+          font-size: 10px;
+          color: #0066cc;
+          margin-top: 2px;
+        }
+        
         .footer {
           margin-top: 15px;
           white-space: pre-line;
@@ -157,6 +164,22 @@ export function generateReceiptHtml(
           <td>Kasir</td>
           <td class="text-right">${cashierName || '-'}</td>
         </tr>
+        ${transaction.orderType ? `
+        <tr>
+          <td>Tipe Order</td>
+          <td class="text-right bold">
+            ${transaction.orderType === 'dine-in' ? '🍽️ Dine In' : ''}
+            ${transaction.orderType === 'takeaway' ? '🥡 Takeaway' : ''}
+            ${transaction.orderType === 'delivery' ? '🚗 Delivery' : ''}
+          </td>
+        </tr>
+        ` : ''}
+        ${transaction.orderType === 'dine-in' && transaction.tableNumber ? `
+        <tr>
+          <td>Nomor Meja</td>
+          <td class="text-right bold">#${transaction.tableNumber}</td>
+        </tr>
+        ` : ''}
         ${transaction.customerName ? `
         <tr>
           <td>Pelanggan</td>
@@ -187,6 +210,13 @@ export function generateReceiptHtml(
               <td class="text-right">${formatCurrency(item.price)}</td>
               <td class="text-right bold">${formatCurrency(item.subtotal)}</td>
             </tr>
+            ${item.notes ? `
+            <tr>
+              <td colspan="4" class="item-note">
+                📝 ${item.notes}
+              </td>
+            </tr>
+            ` : ''}
             ${item.discount > 0 ? `
             <tr>
               <td colspan="4" style="font-size: 10px; color: #666;">
@@ -214,6 +244,12 @@ export function generateReceiptHtml(
           <td class="text-right">${formatCurrency(transaction.tax)}</td>
         </tr>
         ` : ''}
+        ${transaction.promoDiscount > 0 && transaction.promoCode ? `
+        <tr style="color: #00aa00;">
+          <td>Promo (${transaction.promoCode})</td>
+          <td class="text-right">-${formatCurrency(transaction.promoDiscount)}</td>
+        </tr>
+        ` : ''}
         ${transaction.discount > 0 ? `
         <tr>
           <td>Diskon</td>
@@ -239,7 +275,7 @@ export function generateReceiptHtml(
       ${transaction.notes ? `
       <div class="divider"></div>
       <p style="font-size: 11px; margin: 5px 0;">
-        <strong>Catatan:</strong><br>
+        <strong>Catatan Pesanan:</strong><br>
         ${transaction.notes}
       </p>
       ` : ''}
@@ -272,6 +308,13 @@ export async function printDailyReport(
   const totalRevenue = transactions.reduce((sum, t) => sum + t.total, 0);
   const totalTransactions = transactions.length;
   const totalTax = transactions.reduce((sum, t) => sum + t.tax, 0);
+  
+  // ✅ Group by order type
+  const orderTypeStats = {
+    'dine-in': transactions.filter(t => t.orderType === 'dine-in').length,
+    'takeaway': transactions.filter(t => t.orderType === 'takeaway').length,
+    'delivery': transactions.filter(t => t.orderType === 'delivery').length,
+  };
 
   // Fetch all unique cashier names
   const cashierIds = [...new Set(transactions.map(t => t.cashierId))];
@@ -333,6 +376,17 @@ export async function printDailyReport(
           font-size: 24px;
           font-weight: bold;
         }
+        .order-types {
+          display: flex;
+          gap: 10px;
+          margin-bottom: 20px;
+        }
+        .order-type-badge {
+          padding: 8px 15px;
+          border-radius: 5px;
+          background: #f0f0f0;
+          font-size: 14px;
+        }
         table {
           width: 100%;
           border-collapse: collapse;
@@ -373,12 +427,27 @@ export async function printDailyReport(
         </div>
       </div>
       
+      ${orderTypeStats['dine-in'] + orderTypeStats['takeaway'] + orderTypeStats['delivery'] > 0 ? `
+      <div class="order-types">
+        <div class="order-type-badge">
+          🍽️ Dine In: ${orderTypeStats['dine-in']}
+        </div>
+        <div class="order-type-badge">
+          🥡 Takeaway: ${orderTypeStats['takeaway']}
+        </div>
+        <div class="order-type-badge">
+          🚗 Delivery: ${orderTypeStats['delivery']}
+        </div>
+      </div>
+      ` : ''}
+      
       <table>
         <thead>
           <tr>
             <th>Invoice</th>
             <th>Waktu</th>
             <th>Kasir</th>
+            <th>Tipe</th>
             <th>Pelanggan</th>
             <th>Metode</th>
             <th class="text-right">Total</th>
@@ -392,6 +461,13 @@ export async function printDailyReport(
               <td>${t.invoiceNumber}</td>
               <td>${formatDateTime(t.createdAt).split(' ')[1]}</td>
               <td>${cashierMap[t.cashierId] || t.cashierId || '-'}</td>
+              <td>
+                ${t.orderType === 'dine-in' ? '🍽️' : ''}
+                ${t.orderType === 'takeaway' ? '🥡' : ''}
+                ${t.orderType === 'delivery' ? '🚗' : ''}
+                ${t.orderType ? '' : '-'}
+                ${t.orderType === 'dine-in' && t.tableNumber ? ` #${t.tableNumber}` : ''}
+              </td>
               <td>${t.customerName || '-'}</td>
               <td>${t.paymentMethod}</td>
               <td class="text-right">${formatCurrency(t.total)}</td>
@@ -402,7 +478,7 @@ export async function printDailyReport(
         </tbody>
         <tfoot>
           <tr>
-            <th colspan="5">TOTAL</th>
+            <th colspan="6">TOTAL</th>
             <th class="text-right">${formatCurrency(totalRevenue)}</th>
           </tr>
         </tfoot>
