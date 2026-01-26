@@ -1,3 +1,16 @@
+/**
+ * Komponen HistoryPage digunakan untuk menampilkan riwayat transaksi.
+ * Komponen ini menyediakan fitur pencarian, filter, pagination, serta
+ * tampilan detail transaksi melalui modal.
+ *
+ * Halaman ini terdiri dari beberapa bagian seperti header, filter,
+ * statistik ringkas, tabel daftar transaksi, pagination, dan modal
+ * detail transaksi. Data transaksi dan data kasir diambil dari API,
+ * kemudian ditampilkan dalam bentuk tabel. Pengguna dapat melakukan
+ * pencarian, penyaringan, dan navigasi halaman, serta melihat ringkasan
+ * statistik transaksi.
+ */
+
 'use client';
 
 import { useState, useEffect } from 'react';

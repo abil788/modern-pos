@@ -1,3 +1,20 @@
+/**
+ * Fungsi TypeScript ini mengambil data kasir berdasarkan store ID
+ * atau berdasarkan ID tertentu, dengan menangani berbagai kondisi
+ * error secara tepat.
+ * @param {NextRequest} request - Parameter `request` pada fungsi `GET`
+ * merupakan objek yang merepresentasikan HTTP request masuk. Parameter ini
+ * berisi informasi request seperti header, method, URL, query parameter,
+ * dan lainnya. Pada potongan kode ini, parameter `request` bertipe
+ * `NextRequest`, yaitu
+ * @returns Jika fungsi `GET` dipanggil dengan parameter `id` tertentu
+ * pada request, maka fungsi akan mengembalikan detail kasir yang sesuai
+ * dengan ID tersebut. Jika kasir ditemukan, maka akan dikembalikan
+ * sebuah array yang berisi detail kasir. Jika kasir tidak ditemukan,
+ * maka akan dikembalikan respons JSON berisi pesan error dengan status
+ * code 404.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 

@@ -1,4 +1,23 @@
-// src/components/owner/CategoryForm.tsx
+/**
+ * Komponen `CategoryForm` pada React TypeScript digunakan untuk menangani proses
+ * pembuatan dan pengeditan data kategori. Komponen ini menyediakan input form
+ * untuk nama kategori, ikon, dan warna, serta dilengkapi dengan validasi dan
+ * logika pengiriman data.
+ *
+ * @param {CategoryFormProps}
+ * Komponen `CategoryForm` merupakan komponen form yang digunakan untuk menambah
+ * atau mengedit informasi kategori. Parameter yang diterima menentukan perilaku
+ * form, seperti kondisi terbuka/tutup modal dan data kategori yang akan diedit.
+ *
+ * @returns
+ * Komponen `CategoryForm` akan mengembalikan sebuah form yang memungkinkan
+ * pengguna untuk menambah atau mengedit kategori. Form ini berisi field untuk
+ * mengisi nama kategori, ikon, dan warna, serta tombol untuk membatalkan atau
+ * menyimpan data kategori. Selain itu, komponen juga menampilkan status loading
+ * saat proses penyimpanan berlangsung. Form ditampilkan dalam bentuk modal
+ * ketika properti `isOpen` bernilai true.
+ */
+
 'use client';
 
 import { useState } from 'react';

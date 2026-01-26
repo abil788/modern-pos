@@ -1,3 +1,17 @@
+/**
+ * Fungsi-fungsi di atas menangani proses pengambilan, pembaruan,
+ * dan pembuatan pesanan dapur (kitchen orders) pada server Next.js
+ * dengan menggunakan Prisma untuk operasi database.
+ * @param {NextRequest} request - Parameter `request` pada fungsi
+ * `GET`, `PATCH`, dan `POST` merepresentasikan HTTP request masuk
+ * yang dikirim ke server. Parameter ini berisi informasi seperti
+ * method request, header, body, parameter URL, query parameter,
+ * dan lain-lain.
+ * @returns Fungsi GET mengembalikan daftar pesanan dapur berdasarkan
+ * parameter pencarian yang diberikan, serta difilter berdasarkan
+ * station jika parameter tersebut disertakan.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 

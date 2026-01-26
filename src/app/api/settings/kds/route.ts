@@ -1,4 +1,22 @@
-// src/app/api/settings/kds/route.ts
+/**
+ * Kode TypeScript di atas mendefinisikan API route
+ * untuk memuat dan menyimpan pengaturan
+ * Kitchen Display System (KDS)
+ * menggunakan Next.js dan Prisma.
+ * @param {NextRequest} request - Parameter `request` pada fungsi
+ * `GET` dan `POST` merepresentasikan HTTP request masuk
+ * yang dikirim ke endpoint API. Parameter ini berisi
+ * informasi seperti method request, header, URL,
+ * serta data body. Pada kasus ini, parameter tersebut
+ * bertipe `NextRequest`, yang merupakan tipe khusus
+ * pada Next.js.
+ * @returns Fungsi GET mengembalikan objek respons JSON
+ * dengan properti: success (boolean), enabled (boolean),
+ * dan setting (object). Jika terjadi error, fungsi ini
+ * mengembalikan objek respons JSON dengan properti
+ * success (boolean), enabled (boolean), dan error (string).
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 

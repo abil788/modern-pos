@@ -1,4 +1,16 @@
-// src/app/api/auth/change-password/route.ts
+/**
+ * Fungsi ini menangani proses penggantian password pengguna dengan melakukan validasi,
+ * hashing password, pembaruan data ke database, serta pencatatan aktivitas.
+ * @param {NextRequest} request - Parameter `request` pada fungsi `POST` merepresentasikan
+ * HTTP request masuk yang dikirim ke server. Parameter ini berisi informasi seperti
+ * metode request, header, body, dan data relevan lainnya yang dikirim oleh client.
+ * Dalam konteks ini, parameter `request` digunakan untuk mengekstrak data `current
+ * @returns Respons JSON berupa pesan sukses jika penggantian password berhasil,
+ * atau pesan error jika terjadi kesalahan validasi, kesalahan autentikasi,
+ * atau kesalahan pada server. Respons spesifik yang dikembalikan adalah:
+ */
+
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { logActivity } from '@/lib/db';
 import bcrypt from 'bcryptjs';

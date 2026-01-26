@@ -1,3 +1,12 @@
+/* 
+ * Kode di atas merupakan komponen React TypeScript
+ * untuk mengelola promo dan diskon pada sebuah toko.
+ * Komponen ini mencakup fitur mengambil dan menampilkan
+ * data promo, menambah promo baru, mengedit dan menghapus promo,
+ * mengaktifkan atau menonaktifkan promo, serta mengatur
+ * konfigurasi promo seperti tipe, nilai, rentang tanggal,
+ * kategori yang berlaku, batas penggunaan, dan pengaturan lainnya.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';

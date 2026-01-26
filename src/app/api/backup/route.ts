@@ -1,3 +1,16 @@
+/**
+ * Kode TypeScript di atas mendefinisikan fungsi-fungsi untuk membuat dan
+ * mengembalikan (restore) backup data toko menggunakan Prisma dan Next.js.
+ * @param {NextRequest} request - Parameter `request` pada potongan kode yang diberikan
+ * merepresentasikan HTTP request masuk pada kode server-side Next.js. Parameter ini
+ * berisi informasi request seperti header, URL, method, dan data body. Objek `request`
+ * digunakan untuk mengekstrak data dari request, seperti query parameter.
+ * @returns Fungsi GET mengembalikan respons JSON yang berisi data backup untuk
+ * toko tertentu, termasuk informasi toko, produk, kategori, transaksi, pengeluaran,
+ * setting, user, promo, serta ringkasan jumlah (count) untuk setiap tipe data.
+ */
+
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 

@@ -1,3 +1,11 @@
+/* 
+ * Kode di atas merupakan komponen React TypeScript
+ * untuk halaman login.
+ * Komponen ini menangani input pengguna,
+ * proses autentikasi,
+ * serta pengelolaan state dan validasi
+ * sebelum pengguna masuk ke dalam aplikasi.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';

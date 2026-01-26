@@ -1,3 +1,23 @@
+/**
+ * Kode TypeScript di atas mendefinisikan fungsi GET, PUT, dan DELETE
+ * untuk menangani proses pengambilan, pembaruan, dan penghapusan
+ * data produk menggunakan Prisma
+ * dalam lingkungan server Next.js.
+ * @param {NextRequest} request - Parameter `request` pada fungsi
+ * `GET`, `PUT`, dan `DELETE` merepresentasikan HTTP request masuk
+ * yang dikirim ke server. Parameter ini berisi informasi seperti
+ * header, body, method, URL, dan detail lain yang berkaitan
+ * dengan request yang sedang diproses.
+ * @param  - Kode yang diberikan merupakan sekumpulan fungsi
+ * untuk menangani request GET, PUT, dan DELETE yang berkaitan
+ * dengan produk pada API Next.js. Berikut adalah penjabaran
+ * parameter yang digunakan dalam fungsi-fungsi tersebut:
+ * @returns Potongan kode ini berisi tiga fungsi, yaitu GET, PUT,
+ * dan DELETE, yang masing-masing menangani method HTTP yang berbeda
+ * untuk operasi produk. Berikut adalah nilai yang dikembalikan
+ * oleh masing-masing fungsi:
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 

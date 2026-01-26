@@ -1,5 +1,17 @@
-// ===========================
-// src/app/api/cash-drawer/route.ts
+/**
+ * Fungsi-fungsi di atas menangani request GET, POST, dan PUT untuk mengelola
+ * cash drawer pada sebuah toko, termasuk mengambil data, membuka,
+ * dan menutup cash drawer.
+ * @param {NextRequest} request - Parameter `request` pada fungsi `GET`, `POST`,
+ * dan `PUT` merepresentasikan HTTP request masuk yang dikirim ke server.
+ * Parameter ini berisi informasi request seperti header, body, parameter URL,
+ * query parameter, dan lain-lain. Pada potongan kode ini, parameter `request`
+ * bertipe
+ * @returns Kode ini berisi tiga fungsi untuk menangani berbagai method HTTP
+ * (GET, POST, PUT) yang berkaitan dengan operasi cash drawer.
+ */
+
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 

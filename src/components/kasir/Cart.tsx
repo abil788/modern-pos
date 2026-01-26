@@ -1,4 +1,11 @@
-// src/components/kasir/Cart.tsx
+/* 
+ * Komponen `Cart` adalah komponen React TypeScript yang merepresentasikan
+ * antarmuka keranjang belanja. Komponen ini digunakan untuk menampilkan
+ * daftar produk yang ditambahkan ke keranjang, mengatur jumlah item,
+ * menghitung total harga, serta menyediakan aksi seperti menghapus item
+ * dan melanjutkan ke proses checkout.
+ */
+
 'use client';
 
 import { ShoppingCart } from 'lucide-react';

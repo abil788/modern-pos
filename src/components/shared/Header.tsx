@@ -1,3 +1,9 @@
+/* 
+ * Kode yang diberikan merupakan komponen React TypeScript bernama `Header`.
+ * Komponen ini merepresentasikan bagian header dari sebuah aplikasi web.
+ * Berikut adalah ringkasan dari fungsi yang dilakukan oleh kode tersebut:
+ */
+
 'use client';
 
 import { Menu, Settings, User, LogOut } from 'lucide-react';

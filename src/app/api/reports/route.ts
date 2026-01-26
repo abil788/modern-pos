@@ -1,4 +1,26 @@
-// src/app/api/reports/route.ts
+/**
+ * Fungsi ini mengambil dan memproses data transaksi
+ * berdasarkan parameter yang ditentukan
+ * untuk menghasilkan laporan yang detail.
+ * @param {NextRequest} request - Fungsi `GET` pada potongan
+ * kode yang diberikan merupakan route handler
+ * untuk mengambil laporan berdasarkan berbagai
+ * parameter yang dikirim melalui request.
+ * Berikut adalah penjabaran parameter yang
+ * digunakan dalam fungsi tersebut:
+ * @returns Fungsi `GET` pada potongan kode ini
+ * mengembalikan respons JSON yang berisi berbagai
+ * data terkait transaksi dan laporan. Respons
+ * mencakup data ringkasan seperti total pendapatan,
+ * total transaksi, total pajak, total diskon,
+ * total diskon promo, total profit, serta rata-rata
+ * nilai transaksi. Selain itu, respons juga
+ * menyertakan data yang dikelompokkan berdasarkan
+ * metode pembayaran, produk terlaris, data harian
+ * untuk pendapatan, transaksi, dan profit, serta
+ * data grafik (chart data).
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 

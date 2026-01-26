@@ -1,3 +1,21 @@
+/**
+ * Fungsi TypeScript di atas mengambil dan memproses data dashboard
+ * untuk periode tertentu, termasuk pendapatan, transaksi, profit,
+ * produk dengan stok menipis, produk terlaris, serta data grafik pendapatan.
+ * @param {string} period - Parameter `period` pada potongan kode ini
+ * menentukan rentang waktu pengambilan data dashboard.
+ * Parameter ini dapat memiliki nilai sebagai berikut:
+ * @returns Kode ini mengembalikan sebuah objek respons JSON
+ * yang berisi berbagai data terkait dashboard sebuah toko.
+ * Data yang dikembalikan meliputi:
+ * - `todayRevenue`: Total pendapatan untuk hari ini
+ * - `todayTransactions`: Jumlah transaksi yang terjadi hari ini
+ * - `todayProfit`: Total profit hari ini dengan memperhitungkan diskon promo
+ * - `lowStockProducts`: Jumlah produk dengan stok rendah
+ * - `topProducts
+ */
+
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 

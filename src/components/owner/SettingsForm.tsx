@@ -1,3 +1,9 @@
+/* 
+ * Kode di atas merupakan komponen React TypeScript untuk halaman pengaturan
+ * (settings) dalam sebuah aplikasi web. Berikut adalah ringkasan dari fungsi
+ * yang dilakukan oleh kode tersebut:
+ */
+
 'use client';
 
 import { useState, useEffect } from 'react';

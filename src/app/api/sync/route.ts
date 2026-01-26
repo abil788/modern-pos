@@ -1,3 +1,15 @@
+// Fungsi ini menangani request POST untuk memproses dan menyinkronkan
+// data transaksi yang diterima dari client.
+// Transaksi akan disimpan ke database dan stok produk akan diperbarui.
+//
+// @param {NextRequest} request
+// Request HTTP yang berisi data transaksi.
+//
+// @returns
+// - 400 jika data transaksi tidak valid
+// - 200 jika transaksi berhasil disinkronkan
+// - 500 jika terjadi kesalahan saat proses sinkronisasi
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { generateInvoiceNumber } from '@/lib/db';
 

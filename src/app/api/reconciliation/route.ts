@@ -1,4 +1,21 @@
-// src/app/api/reconciliation/route.ts
+/**
+ * Fungsi GET mengambil data rekonsiliasi
+ * untuk toko dan tanggal tertentu,
+ * serta menghitung ringkasan pembayaran
+ * dan total keseluruhan.
+ * @param {NextRequest} request - Parameter `request` pada fungsi `GET`
+ * merepresentasikan HTTP request masuk
+ * yang dikirim ke route rekonsiliasi.
+ * Parameter ini berisi informasi seperti
+ * parameter URL, query parameter, header,
+ * serta detail request lainnya yang dapat
+ * digunakan untuk memproses dan merespons
+ * request. Pada potongan kode ini, parameter `
+ * @returns Fungsi `GET` pada file `route.ts`
+ * mengembalikan respons JSON berdasarkan
+ * parameter request yang diterima.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { calculatePaymentSummary } from '@/lib/payment-config';

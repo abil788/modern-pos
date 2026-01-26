@@ -1,3 +1,14 @@
+/**
+ * Fungsi `ToastProvider` dalam TypeScript React digunakan untuk
+ * menyiapkan sistem notifikasi toast dengan opsi yang dapat
+ * dikustomisasi untuk pesan sukses, error, dan loading.
+ * @returns Komponen `ToastProvider` dikembalikan. Komponen ini
+ * merender komponen `Toaster` dari library `react-hot-toast`
+ * dengan konfigurasi tertentu, seperti posisi notifikasi,
+ * styling, durasi, serta tema ikon untuk kondisi sukses,
+ * error, dan loading.
+ */
+
 'use client';
 
 import { Toaster } from 'react-hot-toast';

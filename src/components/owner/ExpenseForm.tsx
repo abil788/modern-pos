@@ -1,4 +1,23 @@
-// src/components/owner/ExpenseForm.tsx
+/**
+ * Komponen `ExpenseForm` pada React TypeScript digunakan untuk menangani proses
+ * pembuatan dan pengeditan data pengeluaran. Komponen ini menyediakan input form
+ * untuk kategori, jumlah, tanggal, dan deskripsi pengeluaran, serta dilengkapi
+ * dengan validasi dan logika pengiriman data.
+ *
+ * @param {ExpenseFormProps}
+ * Komponen `ExpenseForm` adalah form yang digunakan untuk menambah atau mengedit
+ * data pengeluaran. Properti yang diterima mengatur perilaku form dan data
+ * pengeluaran yang sedang diproses.
+ *
+ * @returns
+ * Komponen `ExpenseForm` akan mengembalikan sebuah form yang memungkinkan pengguna
+ * untuk menambah atau mengedit pengeluaran. Form ini berisi field untuk memilih
+ * kategori, memasukkan jumlah, tanggal, dan deskripsi pengeluaran, serta tombol
+ * untuk membatalkan atau mengirim form. Proses submit ditangani oleh fungsi
+ * `handleSubmit` yang akan melakukan request POST untuk membuat pengeluaran baru
+ * atau PUT untuk memperbarui data pengeluaran yang sudah ada.
+ */
+
 'use client';
 
 import { useState } from 'react';

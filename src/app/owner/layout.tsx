@@ -1,4 +1,13 @@
-// src/app/owner/layout.tsx
+/**
+ * Komponen OwnerLayout digunakan untuk mengatur layout panel pemilik (owner) pada aplikasi.
+ * Komponen ini menangani navigasi, autentikasi, dan manajemen sesi pengguna.
+ *
+ * @returns
+ * Komponen OwnerLayout mengembalikan struktur layout untuk panel owner,
+ * yang mencakup sidebar dengan tautan navigasi, header, footer dengan tombol logout,
+ * dan area konten utama yang dirender di dalam elemen `main`.
+ */
+
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';

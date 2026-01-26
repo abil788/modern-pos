@@ -1,10 +1,38 @@
-// 📁 src/app/api/auth/cashier-login/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { logActivity } from '@/lib/db';
 
 const MAX_ATTEMPTS = 3;
 const LOCK_DURATION = 15 * 60 * 1000; // 15 menit
+
+/**
+ * Menangani autentikasi login kasir melalui verifikasi PIN.
+ * 
+ * @async
+ * @param {NextRequest} request - HTTP request masuk yang berisi kredensial kasir
+ * @param {string} request.cashierId - Identifier unik dari kasir
+ * @param {string} request.pin - PIN 4 digit untuk autentikasi
+ * 
+ * @returns {Promise<NextResponse>} Respons JSON berisi hasil autentikasi
+ * @returns {Object} Respons sukses (200) - Berisi data user (id, username, fullName, role)
+ * @returns {Object} Respons bad request (400) - PIN tidak ada atau format PIN tidak valid
+ * @returns {Object} Respons not found (404) - ID kasir tidak ditemukan
+ * @returns {Object} Respons forbidden (403) - Akun kasir tidak aktif
+ * @returns {Object} Respons locked (423) - Akun terkunci atau verifikasi PIN gagal setelah batas maksimal percobaan
+ * @returns {Object} Respons unauthorized (401) - PIN salah dengan informasi sisa percobaan
+ * @returns {Object} Respons server error (500) - Terjadi kesalahan server yang tidak terduga
+ * 
+ * @description
+ * Endpoint ini memvalidasi kredensial kasir dan mengelola keamanan akun:
+ * - Memvalidasi format PIN (4 digit)
+ * - Mengecek status akun kasir (aktif/tidak aktif)
+ * - Menerapkan mekanisme penguncian akun setelah percobaan gagal
+ * - Melacak jumlah percobaan login gagal
+ * - Mereset counter percobaan gagal saat login berhasil
+ * - Mencatat aktivitas login melalui fungsi logActivity
+ * - Memperbarui timestamp login terakhir
+ * 
+ * @throws {Error} Mencatat error server ke console
+ */
 
 export async function POST(request: NextRequest) {
   try {

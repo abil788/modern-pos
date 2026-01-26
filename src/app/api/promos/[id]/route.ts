@@ -1,4 +1,20 @@
-// 📁 src/app/api/promos/[id]/route.ts - NEW FILE
+/**
+ * Kode TypeScript di atas mendefinisikan API route
+ * untuk menangani request GET, PUT, dan DELETE
+ * yang berkaitan dengan data promo,
+ * dengan penanganan error dan operasi database.
+ * @param {NextRequest} request - Parameter `request` pada fungsi
+ * `GET`, `PUT`, dan `DELETE` merepresentasikan HTTP request masuk
+ * yang dikirim ke server. Parameter ini berisi informasi seperti
+ * header, body, method, URL, dan detail relevan lainnya.
+ * @param  - Potongan kode yang diberikan digunakan untuk
+ * menangani request GET, PUT, dan DELETE pada resource promo
+ * di dalam API. Berikut adalah penjabaran parameter yang
+ * digunakan dalam fungsi-fungsi tersebut:
+ * @returns Fungsi GET mengembalikan data promo yang berhasil
+ * diambil atau pesan error jika promo tidak ditemukan
+ * atau terjadi kesalahan saat mengambil data promo.
+ */
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';

@@ -1,3 +1,24 @@
+/**
+ * Komponen OwnerDashboard digunakan untuk menampilkan berbagai statistik
+ * dan grafik pada dashboard pemilik toko, termasuk pendapatan, jumlah transaksi,
+ * keuntungan, produk dengan stok rendah, produk terlaris, grafik pendapatan,
+ * dan transaksi terbaru.
+ *
+ * @param {number} amount
+ * Parameter `amount` pada fungsi `formatCurrency` adalah angka yang mewakili
+ * nilai uang yang perlu diformat menjadi string mata uang. Fungsi ini menggunakan
+ * `Intl.NumberFormat` untuk mengubah angka menjadi format mata uang dengan simbol
+ * yang sesuai.
+ *
+ * @returns
+ * Komponen OwnerDashboard mengembalikan struktur halaman yang terdiri dari Header,
+ * Kartu Statistik, Grafik, Produk Teratas, dan Transaksi Terbaru.
+ * Data diambil dari endpoint API berdasarkan periode yang dipilih (hari ini,
+ * minggu, bulan) dan ditampilkan dalam bentuk statistik dashboard seperti
+ * pendapatan, transaksi, keuntungan, produk stok rendah, produk terlaris,
+ * grafik pendapatan, dan transaksi terbaru.
+ */
+
 'use client';
 
 import { useState, useEffect } from 'react';

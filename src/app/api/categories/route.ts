@@ -1,3 +1,19 @@
+/**
+ * Fungsi-fungsi di atas menangani operasi CRUD (Create, Read, Update, Delete)
+ * untuk kategori pada API Next.js dengan menggunakan Prisma
+ * untuk interaksi dengan database.
+ * @param {NextRequest} request - Parameter `request` pada masing-masing fungsi
+ * merepresentasikan HTTP request masuk yang dikirim ke server. Parameter ini
+ * berisi informasi request seperti header, body, parameter URL, query parameter,
+ * dan lain-lain. Pada potongan kode ini, parameter `request`
+ * bertipe `NextRequest`, yaitu
+ * @returns Kode yang disediakan berisi empat fungsi untuk menangani
+ * berbagai method HTTP (GET, POST, PUT, DELETE) yang berkaitan
+ * dengan kategori pada sebuah toko. Berikut adalah apa yang
+ * dikembalikan oleh masing-masing fungsi:
+ */
+
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 

@@ -1,3 +1,11 @@
+/* 
+ * Kode di atas merupakan komponen React TypeScript
+ * untuk halaman Pengaturan (Settings Page) pada aplikasi web.
+ * Komponen ini mencakup fitur pengelolaan pengaturan toko,
+ * penggantian kata sandi, mengaktifkan/mematikan Kitchen Display System (KDS),
+ * serta melakukan backup dan restore data.
+ */
+
 'use client';
 
 import { useState, useEffect } from 'react';

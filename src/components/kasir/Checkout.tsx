@@ -1,3 +1,19 @@
+/*
+ * Komponen ini adalah komponen React TypeScript untuk modal checkout.
+ * Fungsinya memungkinkan pengguna melihat ringkasan pesanan, memilih
+ * metode pembayaran, memasukkan detail pembayaran, data pelanggan,
+ * serta catatan tambahan.
+ *
+ * Komponen ini juga menghitung total pembayaran termasuk pajak,
+ * melakukan validasi pembayaran, dan memproses transaksi dengan
+ * mengirim data ke API. Setelah transaksi berhasil, struk akan
+ * ditampilkan dan keranjang belanja akan dikosongkan.
+ *
+ * Selain itu, komponen ini menggunakan berbagai state, fungsi,
+ * serta library eksternal seperti `lucide-react` untuk ikon dan
+ * `react-hot-toast` untuk menampilkan notifikasi.
+ */
+
 'use client';
 
 import { useState } from 'react';

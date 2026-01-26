@@ -1,3 +1,23 @@
+/**
+ * Fungsi TypeScript ini menangani request GET dan POST
+ * untuk mengambil dan membuat data pengeluaran (expense)
+ * dengan dukungan fitur filtering dan pagination.
+ * @param {NextRequest} request - Parameter `request` pada fungsi
+ * `GET` dan `POST` merepresentasikan HTTP request masuk yang
+ * dikirim ke server. Parameter ini berisi informasi request
+ * seperti header, body, parameter URL, query parameter,
+ * dan lainnya. Pada kasus ini, parameter tersebut bertipe
+ * `NextRequest`, yaitu
+ * @returns Fungsi GET mengembalikan respons JSON yang berisi
+ * data pengeluaran, informasi pagination, serta metrik performa.
+ * Jika berhasil, respons mencakup data pengeluaran, detail
+ * pagination (page, limit, totalCount, totalPages, hasMore),
+ * serta metrik performa (queryTime). Jika terjadi error,
+ * fungsi akan mengembalikan respons JSON dengan pesan error
+ * yang menunjukkan kegagalan dalam mengambil data pengeluaran.
+ */
+
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 

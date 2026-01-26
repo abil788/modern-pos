@@ -1,3 +1,13 @@
+/* 
+ * Kode di atas merupakan komponen React TypeScript
+ * untuk Kitchen Display System (KDS).
+ * Komponen ini mengambil data pesanan dapur dari API,
+ * menampilkannya dalam tampilan grid atau list,
+ * mendukung filter berdasarkan station,
+ * serta menyediakan aksi untuk memulai, menyelesaikan,
+ * dan memperbarui status pesanan maupun item pesanan.
+ */
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';

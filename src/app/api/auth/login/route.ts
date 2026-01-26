@@ -1,3 +1,17 @@
+/**
+ * Fungsi TypeScript ini menangani request POST untuk memverifikasi password owner,
+ * mencatat aktivitas login owner, dan mengembalikan informasi user jika berhasil.
+ * @param {NextRequest} request - Parameter `request` pada potongan kode ini merepresentasikan
+ * HTTP request masuk yang dikirim ke server. Parameter ini berisi informasi seperti
+ * metode request, header, body, dan data relevan lainnya yang dikirim oleh client.
+ * Dalam fungsi ini, parameter `request` digunakan untuk mengekstrak password dan storeId.
+ * @returns Fungsi POST ini mengembalikan respons JSON berupa pesan sukses beserta
+ * detail user jika verifikasi password berhasil, atau pesan gagal dengan detail error
+ * jika terjadi kesalahan selama proses. Respons ini mencakup id, username, role,
+ * dan full name user jika login berhasil. Jika terjadi error, status 400 akan
+ * dikembalikan beserta pesan error.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyOwnerPassword } from '@/lib/auth';
 import { logActivity } from '@/lib/db';

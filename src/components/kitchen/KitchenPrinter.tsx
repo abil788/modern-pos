@@ -1,3 +1,30 @@
+/**
+ * Komponen `KitchenPrinter` pada React TypeScript digunakan untuk membuat dan
+ * mencetak tiket pesanan dapur (kitchen order) dengan format tertentu, serta
+ * mendukung fitur cetak otomatis (auto-print) secara opsional.
+ *
+ * @param {any} order
+ * Parameter `order` merepresentasikan detail pesanan dapur. Data ini mencakup
+ * informasi seperti nomor invoice, nomor meja, nama pelanggan, tipe pesanan,
+ * waktu yang telah berlalu, daftar item pesanan, serta modifier atau catatan
+ * tambahan untuk setiap item.
+ *
+ * @param {string} [station]
+ * Parameter `station` bersifat opsional dan digunakan untuk menentukan stasiun
+ * atau area tertentu di dapur tempat pesanan diproses. Parameter ini membantu
+ * memfilter item pesanan sehingga hanya item yang relevan dengan stasiun
+ * tersebut yang ditampilkan pada tiket dapur.
+ *
+ * @returns
+ * Komponen `KitchenPrinter` akan mengembalikan sebuah tombol yang ketika diklik
+ * akan menjalankan fungsi `handlePrint`. Fungsi ini membuka jendela baru untuk
+ * menampilkan detail pesanan dapur dalam format yang siap dicetak menggunakan
+ * HTML dan CSS. Konten cetakan mencakup informasi pesanan, daftar item, catatan,
+ * serta bagian footer dengan detail tambahan, dan dapat mencetak otomatis jika
+ * fitur auto-print diaktifkan.
+ */
+
+
 'use client';
 
 import { useRef } from 'react';

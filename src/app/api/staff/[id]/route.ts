@@ -1,4 +1,21 @@
-// 📁 src/app/api/staff/[id]/route.ts
+/**
+ * Fungsi-fungsi di atas menangani proses pembaruan
+ * dan penghapusan data kasir pada API route Next.js.
+ * @param {NextRequest} request - Parameter `request` pada fungsi
+ * `PUT` dan `DELETE` merepresentasikan HTTP request masuk
+ * yang dikirim ke server. Parameter ini berisi informasi
+ * seperti method request, header, body, dan parameter URL.
+ * @param  - Potongan kode yang diberikan berisi dua fungsi
+ * untuk menangani request PUT dan DELETE yang masing-masing
+ * digunakan untuk memperbarui dan menghapus data kasir.
+ * Berikut adalah penjabaran parameter yang digunakan
+ * dalam fungsi-fungsi tersebut:
+ * @returns Fungsi PUT mengembalikan data kasir yang telah
+ * diperbarui dalam format JSON jika berhasil, atau pesan
+ * error jika terjadi masalah. Fungsi DELETE mengembalikan
+ * pesan sukses dalam format JSON jika proses penghapusan
+ * berhasil, atau pesan error jika terjadi masalah.
+ */
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { logActivity } from '@/lib/db';

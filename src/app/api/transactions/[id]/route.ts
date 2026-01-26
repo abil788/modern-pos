@@ -1,3 +1,18 @@
+/**
+ * Kode ini menangani request GET dan DELETE untuk data transaksi.
+ * - GET digunakan untuk mengambil detail transaksi berdasarkan ID.
+ * - DELETE digunakan untuk menghapus transaksi dan mengembalikan stok produk.
+ *
+ * @param {NextRequest} request
+ * Request HTTP yang berisi parameter transaksi.
+ *
+ * @returns
+ * - GET: mengembalikan data transaksi jika ditemukan
+ * - GET: mengembalikan error jika transaksi tidak ditemukan atau gagal diambil
+ * - DELETE: berhasil menghapus transaksi dan memulihkan stok
+ * - DELETE: mengembalikan error jika proses gagal
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 

@@ -1,3 +1,13 @@
+/**
+ * Komponen HomePage melakukan redirect ke halaman login menggunakan hook useRouter di Next.js
+ * dan menampilkan loading spinner di atas latar belakang gradien.
+ *
+ * @returns
+ * Komponen HomePage mengembalikan loading spinner yang ditampilkan di atas background gradien
+ * dengan animasi berputar. Hook `useEffect` digunakan untuk melakukan redirect pengguna
+ * ke halaman '/login' menggunakan `router.push` saat komponen dimount.
+ */
+
 'use client';
 
 import { useEffect } from 'react';

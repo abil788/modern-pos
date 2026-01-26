@@ -1,4 +1,10 @@
-// src/components/kasir/ProductGrid.tsx
+/* 
+ * Potongan kode tersebut adalah komponen React TypeScript bernama `ProductGrid`
+ * yang berfungsi untuk menampilkan daftar produk dalam bentuk grid. Komponen ini
+ * menerima data produk sebagai input, lalu merender setiap produk ke dalam
+ * tampilan grid agar mudah dilihat dan dipilih oleh pengguna.
+ */
+
 'use client';
 
 import { Product } from '@/types';

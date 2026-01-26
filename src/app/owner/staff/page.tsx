@@ -1,4 +1,10 @@
-// 📁 src/app/owner/staff/page.tsx
+/* 
+ * Kode di atas merupakan komponen React TypeScript
+ * untuk halaman manajemen staf pada aplikasi web.
+ * Komponen ini memungkinkan pengguna untuk mengelola kasir,
+ * termasuk menambah kasir baru, mengedit kasir yang ada,
+ * menghapus kasir, dan mengubah status aktif/non-aktif kasir.
+ */
 
 'use client';
 

@@ -1,4 +1,17 @@
-// src/app/api/upload/route.ts
+/**
+ * Fungsi ini menangani permintaan upload file.
+ * Proses yang dilakukan meliputi validasi tipe dan ukuran file,
+ * menyimpan file ke direktori yang ditentukan, serta mengembalikan
+ * URL publik dari file yang berhasil diunggah.
+ *
+ * @param {NextRequest} request
+ * Request HTTP yang berisi form data dengan file yang diunggah.
+ *
+ * @returns
+ * Response JSON yang berisi status upload, pesan error (jika ada),
+ * dan URL publik file apabila upload berhasil.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';

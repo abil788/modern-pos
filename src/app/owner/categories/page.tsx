@@ -1,3 +1,10 @@
+/* 
+ * Kode di atas merupakan komponen React TypeScript
+ * untuk mengelola kategori pada sebuah toko.
+ * Komponen ini menangani penampilan daftar kategori,
+ * penambahan, pengeditan, dan penghapusan kategori,
+ * serta pengambilan data kategori dari API.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';

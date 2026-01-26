@@ -1,3 +1,14 @@
+/**
+ * Komponen ProductsPage digunakan untuk mengelola data produk.
+ * Komponen ini mendukung fitur pagination, pencarian, pengeditan
+ * produk, serta pembuatan barcode.
+ *
+ * Komponen ini mengembalikan struktur JSX untuk manajemen produk
+ * di dalam toko, yang mencakup bagian header, fitur pencarian dan
+ * filter, tabel daftar produk, kontrol pagination, serta modal
+ * untuk menambah/mengedit produk dan menghasilkan barcode.
+ */
+
 'use client';
 
 import { useState, useEffect } from 'react';

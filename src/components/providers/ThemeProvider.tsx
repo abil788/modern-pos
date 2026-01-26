@@ -1,3 +1,18 @@
+/**
+ * Kode di atas mendefinisikan komponen `ThemeProvider` dan hook `useTheme`
+ * untuk mengelola dan menerapkan tema dalam aplikasi React.
+ * @param  - Kode yang diberikan merupakan setup context React untuk
+ * manajemen tema pada aplikasi React. Berikut adalah penjelasan komponen
+ * utamanya:
+ * @returns Potongan kode ini mengembalikan komponen kustom `ThemeProvider`
+ * dan hook `useTheme` yang digunakan untuk mengelola serta menerapkan tema
+ * dalam aplikasi React. Komponen `ThemeProvider` membungkus aplikasi dengan
+ * context provider sehingga setiap komponen dapat mengakses tema saat ini,
+ * mengatur tema baru, dan mengganti tema antara mode terang (light) dan gelap
+ * (dark). Hook `useTheme` digunakan untuk mengonsumsi context tema tersebut
+ * di dalam komponen fungsional.
+ */
+
 'use client';
 
 import { createContext, useContext, useEffect, useState } from 'react';

@@ -1,3 +1,15 @@
+/**
+ * Komponen `BarcodeScanner` adalah komponen React TypeScript yang memungkinkan pengguna
+ * melakukan pemindaian barcode menggunakan kamera atau dengan memasukkan kode barcode
+ * secara manual. Komponen ini menyediakan opsi untuk berpindah mode (kamera / manual)
+ * serta menangani event hasil pemindaian barcode.
+ *
+ * @returns
+ * Komponen `BarcodeScanner` akan menampilkan antarmuka pemindai barcode yang terdiri dari
+ * header, tombol pilihan mode (kamera atau input manual), area pemindaian kamera atau
+ * form input manual, serta logika untuk menangani hasil scan dan interaksi pengguna.
+ */
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';

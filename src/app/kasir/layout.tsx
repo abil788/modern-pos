@@ -1,3 +1,10 @@
+/* 
+ * Kode di atas merupakan komponen layout React TypeScript
+ * yang digunakan dalam aplikasi kasir.
+ * Layout ini berfungsi sebagai kerangka utama tampilan,
+ * mengatur struktur halaman, dan membungkus konten kasir.
+ */
+
 'use client';
 
 import { useEffect, useState } from 'react';

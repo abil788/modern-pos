@@ -1,4 +1,21 @@
-// 📁 src/app/api/promos/route.ts - NEW FILE
+/**
+ * Fungsi-fungsi di atas menangani request GET dan POST
+ * untuk mengambil dan membuat data promo
+ * dengan validasi serta penanganan error.
+ * @param {NextRequest} request - Parameter `request` pada fungsi
+ * `GET` dan `POST` merepresentasikan HTTP request masuk
+ * yang dikirim ke server. Parameter ini berisi informasi
+ * request seperti header, body, parameter URL,
+ * query parameter, dan lain-lain. Pada potongan kode
+ * yang diberikan, parameter `request` bertipe
+ * `
+ * @returns Fungsi GET mengembalikan daftar promo
+ * berdasarkan parameter pencarian yang diberikan
+ * pada URL request. Jika terjadi error selama proses
+ * pengambilan data, maka akan dikembalikan pesan error
+ * dengan status code 500.
+ */
+
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';

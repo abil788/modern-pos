@@ -1,3 +1,10 @@
+/* 
+ * Kode ini merupakan komponen React TypeScript
+ * yang berfungsi sebagai root layout untuk sebuah aplikasi web.
+ * Komponen ini mengatur struktur dasar halaman, termasuk elemen
+ * HTML utama, header, footer, dan area konten yang akan dirender
+ * oleh halaman-halaman anak.
+ */
 import './globals.css';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';

@@ -1,4 +1,22 @@
-// 📁 src/app/api/promos/validate/route.ts - NEW FILE
+/**
+ * Fungsi `POST` melakukan validasi permintaan kode promo
+ * berdasarkan berbagai kriteria dan menghitung
+ * besaran diskon yang akan diterapkan.
+ * @param {number} amount - Potongan kode yang diberikan
+ * merupakan file TypeScript yang mendefinisikan sebuah route
+ * untuk memvalidasi kode promo pada sebuah aplikasi.
+ * Route ini menerima request POST dengan body JSON
+ * yang berisi informasi kode promo, store ID, subtotal,
+ * item di dalam keranjang, serta opsional nomor telepon customer.
+ * @returns Kode ini mengembalikan respons JSON yang berisi
+ * informasi hasil validasi kode promo. Respons mencakup
+ * status validitas promo, jumlah diskon, serta pesan error
+ * jika promo tidak valid. Selain itu, respons juga
+ * menyertakan detail promo seperti ID promo, kode,
+ * nama, tipe, dan nilai promo. Respons juga berisi
+ * pesan yang menunjukkan keberhasilan penerapan promo dan
+ */
+
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';

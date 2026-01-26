@@ -1,4 +1,11 @@
-// src/app/owner/reconciliation/page.tsx
+/* 
+ * Kode di atas merupakan komponen React TypeScript
+ * untuk halaman rekonsiliasi pada sebuah aplikasi web.
+ * Komponen ini digunakan untuk menampilkan dan mengolah
+ * data rekonsiliasi transaksi berdasarkan toko dan tanggal,
+ * menghitung ringkasan pembayaran, total transaksi,
+ * serta membantu pengecekan kesesuaian data keuangan.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';

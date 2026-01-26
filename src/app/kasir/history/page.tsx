@@ -1,3 +1,10 @@
+/* 
+ * Kode di atas merupakan komponen React TypeScript untuk sebuah halaman
+ * yang menampilkan riwayat transaksi kasir.
+ * Komponen ini bertanggung jawab untuk mengambil, menampilkan,
+ * dan mengelola data transaksi yang dilakukan oleh kasir.
+ */
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';

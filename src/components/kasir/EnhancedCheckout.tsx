@@ -1,4 +1,20 @@
-// src/components/kasir/EnhancedCheckout.tsx
+/**
+ * Komponen `EnhancedCheckout` adalah komponen React TypeScript yang menangani
+ * proses checkout dengan fitur yang lebih lengkap. Komponen ini mendukung
+ * berbagai metode pembayaran, pemilihan tipe pesanan, catatan per item,
+ * penggunaan kode promo, serta input informasi pelanggan.
+ *
+ * @param {EnhancedCheckoutProps}
+ * - isOpen: Menentukan apakah modal checkout dalam keadaan terbuka atau tertutup.
+ *
+ * @returns
+ * Komponen `EnhancedCheckout` akan menampilkan form checkout yang berisi
+ * pengaturan metode pembayaran, tipe pesanan, catatan item, input kode promo,
+ * data pelanggan, dan catatan tambahan. Komponen ini juga menangani logika
+ * penerapan dan penghapusan promo, perhitungan total pembayaran, serta
+ * pengiriman data transaksi ke sistem.
+ */
+ 
 'use client';
 
 import { useState, useEffect } from 'react';

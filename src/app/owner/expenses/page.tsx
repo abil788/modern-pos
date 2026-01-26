@@ -1,3 +1,13 @@
+/**
+ * Komponen ExpensesPage digunakan untuk mengelola pengeluaran operasional toko.
+ * Komponen ini memungkinkan pengguna untuk menambah, mengedit, dan menghapus data
+ * pengeluaran, serta melihat detail pengeluaran dengan fitur pagination dan filter.
+ *
+ * Komponen ini menampilkan elemen UI seperti header halaman, kartu ringkasan,
+ * filter data, tabel pengeluaran, pagination, dan modal form untuk menambah
+ * atau mengedit pengeluaran. Data pengeluaran diambil dari API, mendukung
+ * pencarian dan penyaringan, serta menyediakan fungsi CRUD pengeluaran.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';

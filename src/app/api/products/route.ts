@@ -1,3 +1,18 @@
+/**
+ * Kode TypeScript ini mendefinisikan endpoint API
+ * untuk menangani operasi CRUD (Create, Read, Update, Delete)
+ * pada data produk dengan dukungan pagination
+ * serta penanganan error.
+ * @param {NextRequest} request - Parameter `request` pada potongan
+ * kode yang diberikan merepresentasikan objek HTTP request masuk
+ * pada API route Next.js. Parameter ini berisi informasi request
+ * seperti header, query parameter, isi body, dan detail URL.
+ * @returns Kode yang disediakan berisi endpoint API
+ * untuk menangani operasi CRUD yang berkaitan dengan produk.
+ * Berikut adalah ringkasan nilai yang dikembalikan
+ * oleh masing-masing fungsi:
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 

@@ -1,3 +1,10 @@
+/* 
+ * Kode di atas merupakan komponen React TypeScript untuk form produk.
+ * Komponen ini digunakan untuk menambah atau mengedit informasi produk,
+ * termasuk nama, SKU, barcode, deskripsi, harga, biaya, stok, stok minimum,
+ * kategori, dan gambar produk.
+ */
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';

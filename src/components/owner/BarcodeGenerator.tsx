@@ -1,3 +1,10 @@
+/* 
+ * Kode di atas merupakan komponen React bernama `BarcodeGenerator` yang digunakan
+ * untuk membuat (generate) barcode. Komponen ini memungkinkan pengguna untuk
+ * menghasilkan barcode, melihat pratinjau barcode, mengunduh hasil barcode,
+ * serta mencetak barcode sesuai kebutuhan.
+ */
+
 'use client';
 
 import { useState, useRef, useEffect } from 'react';

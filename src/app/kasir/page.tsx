@@ -1,3 +1,10 @@
+/* 
+ * Kode di atas merupakan komponen React TypeScript
+ * untuk antarmuka sistem Point of Sale (POS).
+ * Komponen ini mengatur tampilan dan interaksi
+ * dalam proses transaksi penjualan.
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";

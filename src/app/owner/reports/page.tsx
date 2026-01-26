@@ -1,3 +1,11 @@
+/* 
+ * Kode di atas merupakan komponen React TypeScript
+ * untuk halaman laporan (Reports Page).
+ * Komponen ini digunakan untuk menampilkan laporan transaksi
+ * berdasarkan berbagai filter seperti tanggal, metode pembayaran,
+ * dan kasir, serta menyajikan ringkasan data seperti total pendapatan,
+ * jumlah transaksi, pajak, diskon, keuntungan, dan grafik laporan.
+ */
 'use client';
 
 import { useState, useEffect } from 'react';

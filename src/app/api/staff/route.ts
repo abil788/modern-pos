@@ -1,3 +1,26 @@
+/**
+ * Fungsi-fungsi berikut menangani request GET dan POST
+ * untuk data kasir (cashier).
+ * GET digunakan untuk mengambil daftar kasir
+ * berdasarkan kriteria tertentu,
+ * sedangkan POST digunakan untuk membuat data kasir baru
+ * dengan proses validasi dan pencatatan aktivitas (activity log).
+ *
+ * @param {NextRequest} request - Parameter `request` pada fungsi `GET` dan `POST`
+ * merupakan HTTP request yang masuk ke server.
+ * Parameter ini berisi informasi seperti header,
+ * body, URL, query parameter, dan data lain
+ * yang digunakan untuk memproses permintaan,
+ * termasuk mengambil parameter filter
+ * dan data kasir yang akan dibuat.
+ *
+ * @returns Fungsi `GET` mengembalikan daftar kasir
+ * sesuai dengan parameter yang diberikan.
+ * Fungsi `POST` akan membuat data kasir baru
+ * di database dan mengembalikan detail kasir
+ * yang berhasil dibuat.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { logActivity } from '@/lib/db';
 

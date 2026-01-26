@@ -1,3 +1,21 @@
+/**
+ * Kode ini mendefinisikan endpoint API untuk mengelola transaksi.
+ * Fungsinya meliputi:
+ * - GET: mengambil data transaksi
+ * - POST: membuat transaksi baru
+ * - DELETE: menghapus transaksi (khusus admin / testing)
+ *
+ * @param {NextRequest} request
+ * Request HTTP yang berisi data transaksi, parameter query, atau body
+ * yang dibutuhkan sesuai dengan metode yang digunakan.
+ *
+ * @returns
+ * Response JSON sesuai dengan metode:
+ * - GET: data transaksi atau pesan error
+ * - POST: hasil pembuatan transaksi
+ * - DELETE: status penghapusan transaksi
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { generateInvoiceNumber } from '@/lib/db';
 import { triggerKitchenOrder } from '@/lib/pusher-server';
