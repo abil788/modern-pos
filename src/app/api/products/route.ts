@@ -1,23 +1,13 @@
 /**
- * Kode TypeScript ini mendefinisikan endpoint API
- * untuk menangani operasi CRUD (Create, Read, Update, Delete)
- * pada data produk dengan dukungan pagination
- * serta penanganan error.
- * @param {NextRequest} request - Parameter `request` pada potongan
- * kode yang diberikan merepresentasikan objek HTTP request masuk
- * pada API route Next.js. Parameter ini berisi informasi request
- * seperti header, query parameter, isi body, dan detail URL.
- * @returns Kode yang disediakan berisi endpoint API
- * untuk menangani operasi CRUD yang berkaitan dengan produk.
- * Berikut adalah ringkasan nilai yang dikembalikan
- * oleh masing-masing fungsi:
+ * API Route untuk operasi CRUD produk (FIXED VERSION)
+ * Perbaikan: Menghapus duplicate DELETE endpoint
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 
 export async function GET(request: NextRequest) {
-  const startTime = Date.now(); // Performance monitoring
+  const startTime = Date.now();
   
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -69,7 +59,7 @@ export async function GET(request: NextRequest) {
         take: limit,
         skip: offset,
       }),
-      prisma.product.count({ where }), // Total count untuk pagination info
+      prisma.product.count({ where }),
     ]);
 
     const queryTime = Date.now() - startTime;
@@ -207,28 +197,3 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
-  const startTime = Date.now();
-  
-  try {
-    const searchParams = request.nextUrl.searchParams;
-    const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json({ error: 'Product ID required' }, { status: 400 });
-    }
-
-    await prisma.product.delete({
-      where: { id },
-    });
-
-    const queryTime = Date.now() - startTime;
-    console.log(`[PRODUCTS API] Product deleted in ${queryTime}ms | ID: ${id}`);
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    const queryTime = Date.now() - startTime;
-    console.error(`[PRODUCTS API] Delete error after ${queryTime}ms:`, error);
-    return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
-  }
-}
