@@ -1,4 +1,4 @@
-/* 
+/*
  * Kode di atas merupakan komponen React TypeScript
  * untuk antarmuka sistem Point of Sale (POS).
  * Komponen ini mengatur tampilan dan interaksi
@@ -352,67 +352,105 @@ export default function KasirPage() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pt-20 px-4">
                 {filteredProducts.map((product) => {
                   const isOutOfStock = product.stock <= 0;
+                  const isLowStock =
+                    product.stock <= product.minStock && !isOutOfStock;
 
                   return (
                     <button
                       key={product.id}
                       onClick={() => handleAddToCart(product)}
                       disabled={isOutOfStock}
-                      className={`bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-lg transition-shadow border dark:border-gray-700 ${
-                        isOutOfStock
-                          ? "opacity-50 cursor-not-allowed"
-                          : "hover:border-blue-500 dark:hover:border-blue-500"
-                      }`}
+                      className="group relative disabled:opacity-60 disabled:cursor-not-allowed mb-16"
                     >
-                      <div className="relative">
-                        {product.image ? (
-                          <img
-                            src={product.image}
-                            alt={product.name}
-                            className={`w-full h-32 object-cover rounded-lg mb-2 ${
-                              isOutOfStock ? "grayscale" : ""
-                            }`}
-                          />
-                        ) : (
-                          <div
-                            className={`w-full h-32 bg-gray-200 dark:bg-gray-700 rounded-lg mb-2 flex items-center justify-center ${
-                              isOutOfStock ? "grayscale" : ""
+                      {/* Card Container */}
+                      <div className="relative bg-white dark:bg-gray-800 rounded-2xl overflow-visible pt-16 pb-4 px-4 hover:shadow-xl transition-all duration-300 border-2 border-gray-400 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500">
+                        {/* Floating Image */}
+                        <div className="absolute -top-16 left-1/2 transform -translate-x-1/2 z-10">
+                          <div className="relative w-32 h-32 group-hover:scale-105 transition-transform duration-300">
+                            {/* Shadow di bawah gambar */}
+                            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20 rounded-full blur-xl transform translate-y-2" />
+
+                            {/* Image Bulat - TETAP JELAS! */}
+                            <div className="relative w-32 h-32 rounded-full overflow-hidden bg-white shadow-2xl ring-3 ring-gray-400 dark:ring-gray-600">
+                              {product.image ? (
+                                <img
+                                  src={product.image}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
+                                  <span className="text-6xl">🍽️</span>
+                                </div>
+                              )}
+
+                              {/* Out of Stock Overlay - GAMBAR TETAP JELAS! */}
+                              {isOutOfStock && (
+                                <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center">
+                                  {/* Icon X Merah */}
+                                  <div className="w-20 h-20 rounded- flex items-center justify-center shadow-2xl">
+                                    <svg
+                                      className="w-12 h-12 text-white"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                      strokeWidth={3}
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M6 18L18 6M6 6l12 12"
+                                      />
+                                    </svg>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Stock Badge */}
+                            {!isOutOfStock && (
+                              <div
+                                className={`absolute -top-1 -right-1 ${
+                                  isLowStock
+                                    ? "bg-orange-500"
+                                    : "bg-emerald-500"
+                                } text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg`}
+                              >
+                                {product.stock}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Product Info */}
+                        <div className="text-center mt-6 space-y-1">
+                          <h3 className="font-semibold text-gray-900 dark:text-white leading-snug line-clamp-2 min-h-[44px] text-lg tracking-tight">
+                            {product.name}
+                          </h3>
+
+                          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium tracking-wide">
+                            {formatCurrency(product.price)}
+                          </p>
+
+                          {/* Stock Status */}
+                          <p
+                            className={`text-xs font-medium ${
+                              isOutOfStock
+                                ? "text-red-600 dark:text-red-400"
+                                : isLowStock
+                                  ? "text-orange-600 dark:text-orange-400"
+                                  : "text-emerald-600 dark:text-emerald-400"
                             }`}
                           >
-                            <span className="text-4xl">📦</span>
-                          </div>
-                        )}
-
-                        {isOutOfStock && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 rounded-lg">
-                            <span className="bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold">
-                              HABIS
-                            </span>
-                          </div>
-                        )}
+                            {isOutOfStock
+                              ? "Habis"
+                              : `${product.stock} tersedia`}
+                          </p>
+                        </div>
                       </div>
-
-                      <h3 className="font-semibold text-sm mb-1 truncate dark:text-white">
-                        {product.name}
-                      </h3>
-                      <p className="text-blue-600 dark:text-blue-400 font-bold">
-                        {formatCurrency(product.price)}
-                      </p>
-                      <p
-                        className={`text-xs mt-1 font-semibold ${
-                          isOutOfStock
-                            ? "text-red-600 dark:text-red-400"
-                            : product.stock <= product.minStock
-                              ? "text-orange-600 dark:text-orange-400"
-                              : "text-gray-500 dark:text-gray-400"
-                        }`}
-                      >
-                        Stok: {product.stock}
-                        {isOutOfStock && " - HABIS"}
-                      </p>
                     </button>
                   );
                 })}
