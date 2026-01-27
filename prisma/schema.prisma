@@ -1,310 +1,310 @@
-# ======================================================
-# Prisma Schema Documentation
-# Modern POS System dengan Kitchen Display System (KDS)
-# ======================================================
+// ======================================================
+// Prisma Schema Documentation
+// Modern POS System dengan Kitchen Display System (KDS)
+// ======================================================
 
-# Gambaran Umum
-# ------------------------------------------------------
-# Schema Prisma ini mendefinisikan sistem Point of Sale (POS)
-# modern dengan integrasi Kitchen Display System (KDS).
-# Dibangun untuk PostgreSQL 14+ dan mendukung:
-# - Multi-store (multi tenant)
-# - Manajemen user & role
-# - Inventaris & produk
-# - Transaksi penjualan
-# - Sistem promo & diskon
-# - Workflow dapur (KDS)
-# - Audit & keamanan data
+// Gambaran Umum
+// ------------------------------------------------------
+// Schema Prisma ini mendefinisikan sistem Point of Sale (POS)
+// modern dengan integrasi Kitchen Display System (KDS).
+// Dibangun untuk PostgreSQL 14+ dan mendukung:
+// - Multi-store (multi tenant)
+// - Manajemen user & role
+// - Inventaris & produk
+// - Transaksi penjualan
+// - Sistem promo & diskon
+// - Workflow dapur (KDS)
+// - Audit & keamanan data
 
-# ======================================================
-# MODEL INTI
-# ======================================================
+// ======================================================
+// MODEL INTI
+// ======================================================
 
-# ------------------------------------------------------
-# Model: Store
-# ------------------------------------------------------
-# Entitas pusat yang merepresentasikan toko fisik atau digital.
-# Semua data operasional terhubung ke Store.
-#
-# Fitur utama:
-# - Informasi toko (nama, alamat, kontak)
-# - Konfigurasi mata uang & pajak
-# - Branding (logo, warna utama, footer struk)
-# - Sistem lisensi (licenseKey)
-#
-# Relasi:
-# - Products
-# - Users
-# - Transactions
-# - Categories
-# - Settings
-# - Expenses
+// ------------------------------------------------------
+// Model: Store
+// ------------------------------------------------------
+// Entitas pusat yang merepresentasikan toko fisik atau digital.
+// Semua data operasional terhubung ke Store.
+//
+// Fitur utama:
+// - Informasi toko (nama, alamat, kontak)
+// - Konfigurasi mata uang & pajak
+// - Branding (logo, warna utama, footer struk)
+// - Sistem lisensi (licenseKey)
+//
+// Relasi:
+// - Products
+// - Users
+// - Transactions
+// - Categories
+// - Settings
+// - Expenses
 
-# ------------------------------------------------------
-# Model: User
-# ------------------------------------------------------
-# Merepresentasikan staf toko dengan kontrol akses berbasis role.
-#
-# Fitur keamanan:
-# - Login username & password
-# - PIN opsional untuk kasir
-# - Lock akun setelah gagal login
-# - Tracking login terakhir
-#
-# Role default:
-# - CASHIER
-# - MANAGER
-# - ADMIN
-#
-# Relasi:
-# - Store
-# - Transactions
-# - ActivityLogs
-# - CashDrawers
+// ------------------------------------------------------
+// Model: User
+// ------------------------------------------------------
+// Merepresentasikan staf toko dengan kontrol akses berbasis role.
+//
+// Fitur keamanan:
+// - Login username & password
+// - PIN opsional untuk kasir
+// - Lock akun setelah gagal login
+// - Tracking login terakhir
+//
+// Role default:
+// - CASHIER
+// - MANAGER
+// - ADMIN
+//
+// Relasi:
+// - Store
+// - Transactions
+// - ActivityLogs
+// - CashDrawers
 
-# ------------------------------------------------------
-# Model: Category
-# ------------------------------------------------------
-# Kategori produk untuk pengelompokan dan tampilan UI.
-#
-# Fitur:
-# - Warna & ikon kategori
-# - Nama kategori unik per Store
-#
-# Relasi:
-# - Products
+// ------------------------------------------------------
+// Model: Category
+// ------------------------------------------------------
+// Kategori produk untuk pengelompokan dan tampilan UI.
+//
+// Fitur:
+// - Warna & ikon kategori
+// - Nama kategori unik per Store
+//
+// Relasi:
+// - Products
 
-# ------------------------------------------------------
-# Model: Product
-# ------------------------------------------------------
-# Produk utama yang dijual dan ditampilkan di POS & KDS.
-#
-# Inventaris:
-# - SKU
-# - Barcode
-# - Stok & minimum stok
-#
-# Harga:
-# - Harga jual
-# - Harga modal
-#
-# Integrasi KDS:
-# - Waktu persiapan
-# - Kitchen station
-#
-# Relasi:
-# - Category
-# - ProductVariations
-# - TransactionItems
-# - Promos
+// ------------------------------------------------------
+// Model: Product
+// ------------------------------------------------------
+// Produk utama yang dijual dan ditampilkan di POS & KDS.
+//
+// Inventaris:
+// - SKU
+// - Barcode
+// - Stok & minimum stok
+//
+// Harga:
+// - Harga jual
+// - Harga modal
+//
+// Integrasi KDS:
+// - Waktu persiapan
+// - Kitchen station
+//
+// Relasi:
+// - Category
+// - ProductVariations
+// - TransactionItems
+// - Promos
 
-# ------------------------------------------------------
-# Model: ProductVariation
-# ------------------------------------------------------
-# Variasi produk seperti ukuran atau opsi tambahan.
-#
-# Fitur:
-# - Harga terpisah
-# - Stok terpisah
-# - SKU unik per variasi
-#
-# Relasi:
-# - Product
+// ------------------------------------------------------
+// Model: ProductVariation
+// ------------------------------------------------------
+// Variasi produk seperti ukuran atau opsi tambahan.
+//
+// Fitur:
+// - Harga terpisah
+// - Stok terpisah
+// - SKU unik per variasi
+//
+// Relasi:
+// - Product
 
-# ======================================================
-# MODEL TRANSAKSI
-# ======================================================
+// ======================================================
+// MODEL TRANSAKSI
+// ======================================================
 
-# ------------------------------------------------------
-# Model: Transaction
-# ------------------------------------------------------
-# Data utama transaksi penjualan.
-#
-# Perhitungan:
-# - Subtotal
-# - Pajak
-# - Diskon
-# - Diskon promo
-# - Total akhir
-#
-# Pembayaran:
-# - Metode (cash, card, online)
-# - Channel pembayaran
-# - Payment reference
-#
-# Order:
-# - Tipe order (dine-in, takeaway, delivery)
-# - Nomor meja
-#
-# KDS Workflow:
-# - pending -> preparing -> ready -> completed
-#
-# Relasi:
-# - TransactionItems
-# - User (cashier)
-# - Store
+// ------------------------------------------------------
+// Model: Transaction
+// ------------------------------------------------------
+// Data utama transaksi penjualan.
+//
+// Perhitungan:
+// - Subtotal
+// - Pajak
+// - Diskon
+// - Diskon promo
+// - Total akhir
+//
+// Pembayaran:
+// - Metode (cash, card, online)
+// - Channel pembayaran
+// - Payment reference
+//
+// Order:
+// - Tipe order (dine-in, takeaway, delivery)
+// - Nomor meja
+//
+// KDS Workflow:
+// - pending -> preparing -> ready -> completed
+//
+// Relasi:
+// - TransactionItems
+// - User (cashier)
+// - Store
 
-# ------------------------------------------------------
-# Model: TransactionItem
-# ------------------------------------------------------
-# Item detail dalam satu transaksi.
-#
-# Data snapshot:
-# - Nama produk
-# - Harga saat transaksi
-# - Jumlah
-#
-# KDS:
-# - Kitchen station
-# - Status persiapan
-# - Modifier / catatan
-#
-# Relasi:
-# - Transaction
-# - Product
+// ------------------------------------------------------
+// Model: TransactionItem
+// ------------------------------------------------------
+// Item detail dalam satu transaksi.
+//
+// Data snapshot:
+// - Nama produk
+// - Harga saat transaksi
+// - Jumlah
+//
+// KDS:
+// - Kitchen station
+// - Status persiapan
+// - Modifier / catatan
+//
+// Relasi:
+// - Transaction
+// - Product
 
-# ------------------------------------------------------
-# Model: CashDrawer
-# ------------------------------------------------------
-# Manajemen kas harian.
-#
-# Fitur:
-# - Saldo awal
-# - Saldo akhir
-# - Perhitungan selisih
-# - Catatan audit
-#
-# Status:
-# - OPEN
-# - CLOSED
-#
-# Relasi:
-# - Store
-# - User
+// ------------------------------------------------------
+// Model: CashDrawer
+// ------------------------------------------------------
+// Manajemen kas harian.
+//
+// Fitur:
+// - Saldo awal
+// - Saldo akhir
+// - Perhitungan selisih
+// - Catatan audit
+//
+// Status:
+// - OPEN
+// - CLOSED
+//
+// Relasi:
+// - Store
+// - User
 
-# ======================================================
-# MODEL PENDUKUNG
-# ======================================================
+// ======================================================
+// MODEL PENDUKUNG
+// ======================================================
 
-# ------------------------------------------------------
-# Model: Expense
-# ------------------------------------------------------
-# Pencatatan pengeluaran toko.
-#
-# Fitur:
-# - Kategori expense
-# - Nominal
-# - Tanggal
-# - Deskripsi
-#
-# Relasi:
-# - Store
+// ------------------------------------------------------
+// Model: Expense
+// ------------------------------------------------------
+// Pencatatan pengeluaran toko.
+//
+// Fitur:
+// - Kategori expense
+// - Nominal
+// - Tanggal
+// - Deskripsi
+//
+// Relasi:
+// - Store
 
-# ------------------------------------------------------
-# Model: Promo
-# ------------------------------------------------------
-# Sistem promo & diskon fleksibel.
-#
-# Tipe promo:
-# - Persentase
-# - Nominal tetap
-# - Buy X Get Y
-#
-# Target:
-# - Produk
-# - Kategori
-# - Total keranjang
-#
-# Validasi:
-# - Rentang tanggal
-# - Jam tertentu
-# - Hari tertentu
-#
-# Limit:
-# - Maksimal penggunaan
-# - Per customer
-# - Minimum pembelian
-#
-# Relasi:
-# - Products
-# - Categories
-# - PromoUsageLogs
+// ------------------------------------------------------
+// Model: Promo
+// ------------------------------------------------------
+// Sistem promo & diskon fleksibel.
+//
+// Tipe promo:
+// - Persentase
+// - Nominal tetap
+// - Buy X Get Y
+//
+// Target:
+// - Produk
+// - Kategori
+// - Total keranjang
+//
+// Validasi:
+// - Rentang tanggal
+// - Jam tertentu
+// - Hari tertentu
+//
+// Limit:
+// - Maksimal penggunaan
+// - Per customer
+// - Minimum pembelian
+//
+// Relasi:
+// - Products
+// - Categories
+// - PromoUsageLogs
 
-# ------------------------------------------------------
-# Model: PromoUsageLog
-# ------------------------------------------------------
-# Log penggunaan promo untuk audit & analitik.
-#
-# Data:
-# - Promo yang digunakan
-# - Transaksi
-# - Customer
-# - Nilai diskon
-#
-# Digunakan untuk:
-# - Analisis performa promo
-# - Audit penggunaan
+// ------------------------------------------------------
+// Model: PromoUsageLog
+// ------------------------------------------------------
+// Log penggunaan promo untuk audit & analitik.
+//
+// Data:
+// - Promo yang digunakan
+// - Transaksi
+// - Customer
+// - Nilai diskon
+//
+// Digunakan untuk:
+// - Analisis performa promo
+// - Audit penggunaan
 
-# ------------------------------------------------------
-# Model: Setting
-# ------------------------------------------------------
-# Penyimpanan konfigurasi dinamis berbasis key-value.
-#
-# Fitur:
-# - Setting per Store
-# - Satu key hanya punya satu value per Store
+// ------------------------------------------------------
+// Model: Setting
+// ------------------------------------------------------
+// Penyimpanan konfigurasi dinamis berbasis key-value.
+//
+// Fitur:
+// - Setting per Store
+// - Satu key hanya punya satu value per Store
 
-# ------------------------------------------------------
-# Model: ActivityLog
-# ------------------------------------------------------
-# Audit trail aktivitas user.
-#
-# Data:
-# - User
-# - Aksi
-# - Detail
-# - Timestamp
-#
-# Optimasi:
-# - Index berdasarkan user & waktu
+// ------------------------------------------------------
+// Model: ActivityLog
+// ------------------------------------------------------
+// Audit trail aktivitas user.
+//
+// Data:
+// - User
+// - Aksi
+// - Detail
+// - Timestamp
+//
+// Optimasi:
+// - Index berdasarkan user & waktu
 
-# ======================================================
-# POLA DESAIN & ARSITEKTUR
-# ======================================================
+// ======================================================
+// POLA DESAIN & ARSITEKTUR
+// ======================================================
 
-# Multi-Tenancy
-# ------------------------------------------------------
-# Hampir semua model memiliki storeId
-# untuk memastikan isolasi data antar toko.
+// Multi-Tenancy
+// ------------------------------------------------------
+// Hampir semua model memiliki storeId
+// untuk memastikan isolasi data antar toko.
 
-# Referential Integrity
-# ------------------------------------------------------
-# Menggunakan cascade delete untuk mencegah data yatim.
+// Referential Integrity
+// ------------------------------------------------------
+// Menggunakan cascade delete untuk mencegah data yatim.
 
-# KDS Workflow
-# ------------------------------------------------------
-# Mendukung alur dapur:
-# - Pending
-# - Preparing
-# - Ready
-# - Completed
-# Termasuk tracking waktu dan kitchen station.
+// KDS Workflow
+// ------------------------------------------------------
+// Mendukung alur dapur:
+// - Pending
+// - Preparing
+// - Ready
+// - Completed
+// Termasuk tracking waktu dan kitchen station.
 
-# Performance
-# ------------------------------------------------------
-# Index strategis pada:
-# - storeId
-# - status transaksi
-# - tanggal
-# - barcode & SKU
-# - promo code
+// Performance
+// ------------------------------------------------------
+// Index strategis pada:
+// - storeId
+// - status transaksi
+// - tanggal
+// - barcode & SKU
+// - promo code
 
-# Security & Audit
-# ------------------------------------------------------
-# - Login aman + PIN
-# - Lock akun otomatis
-# - Activity log lengkap
-# - Payment reference untuk rekonsiliasi
+// Security & Audit
+// ------------------------------------------------------
+// - Login aman + PIN
+// - Lock akun otomatis
+// - Activity log lengkap
+// - Payment reference untuk rekonsiliasi
 
 
 // Prisma Schema - Modern POS System with Kitchen Display System
