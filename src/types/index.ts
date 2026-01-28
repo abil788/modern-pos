@@ -56,10 +56,10 @@ export interface Product {
   stock: number;
   minStock: number;
   image?: string;
-  categoryId?: string;
+  category?: Category | null;
+  variations?: ProductVariation[];
   storeId: string;
   isActive: boolean;
-  // ✅ KDS Fields
   prepTime?: number;
   kitchenStation?: string;
   createdAt: Date;

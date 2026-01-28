@@ -8,7 +8,7 @@
 // Schema Prisma ini mendefinisikan sistem Point of Sale (POS)
 // modern dengan integrasi Kitchen Display System (KDS).
 // Dibangun untuk PostgreSQL 14+ dan mendukung:
-// - Multi-store (multi tenant)
+// - Multi-kasir (multi tenant)
 // - Manajemen user & role
 // - Inventaris & produk
 // - Transaksi penjualan
