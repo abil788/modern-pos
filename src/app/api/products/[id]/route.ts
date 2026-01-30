@@ -91,7 +91,6 @@ export async function DELETE(
   const startTime = Date.now();
   
   try {
-    console.log(`[DELETE PRODUCT] Attempting to delete product ID: ${params.id}`);
 
     // 1️⃣ Cek apakah produk ada
     const existingProduct = await prisma.product.findUnique({
@@ -102,7 +101,6 @@ export async function DELETE(
     });
 
     if (!existingProduct) {
-      console.log(`[DELETE PRODUCT] Product not found: ${params.id}`);
       return NextResponse.json(
         { error: 'Product not found' }, 
         { status: 404 }
@@ -111,7 +109,6 @@ export async function DELETE(
 
     // 2️⃣ Cek apakah ada transaksi terkait
     if (existingProduct.transactionItems.length > 0) {
-      console.log(`[DELETE PRODUCT] Product has ${existingProduct.transactionItems.length} transaction items`);
       
       // Opsi 1: Soft delete (ubah isActive jadi false)
       const softDeleted = await prisma.product.update({
@@ -123,7 +120,6 @@ export async function DELETE(
       });
 
       const queryTime = Date.now() - startTime;
-      console.log(`[DELETE PRODUCT] Soft deleted in ${queryTime}ms | ID: ${params.id}`);
 
       return NextResponse.json({ 
         success: true, 
@@ -138,7 +134,6 @@ export async function DELETE(
     });
 
     const queryTime = Date.now() - startTime;
-    console.log(`[DELETE PRODUCT] Hard deleted in ${queryTime}ms | ID: ${params.id}`);
 
     return NextResponse.json({ 
       success: true,

@@ -25,7 +25,6 @@ export async function getStoreSettings(storeId: string) {
     where: { storeId },
   });
   
-  console.log(`[DB] getStoreSettings took ${Date.now() - startTime}ms`);
   
   return settings.reduce((acc, setting) => {
     acc[setting.key] = setting.value;
@@ -51,7 +50,6 @@ export async function updateStoreSetting(storeId: string, key: string, value: st
     },
   });
   
-  console.log(`[DB] updateStoreSetting took ${Date.now() - startTime}ms`);
   return result;
 }
 
@@ -84,7 +82,6 @@ export async function generateInvoiceNumber(storeId: string): Promise<string> {
 
   const invoiceNumber = `${prefix}-${String(sequence).padStart(4, '0')}`;
   
-  console.log(`[DB] generateInvoiceNumber took ${Date.now() - startTime}ms | Invoice: ${invoiceNumber}`);
   
   return invoiceNumber;
 }
@@ -106,12 +103,10 @@ export async function logActivity(
     },
   });
   
-  console.log(`[DB] logActivity took ${Date.now() - startTime}ms`);
 }
 
 // Graceful shutdown
 process.on('beforeExit', async () => {
-  console.log('[DB] Disconnecting Prisma...');
   await prisma.$disconnect();
 });
 

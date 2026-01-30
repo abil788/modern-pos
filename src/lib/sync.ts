@@ -57,7 +57,6 @@ export function autoSync(storeId: string, cashierId: string, intervalMs: number 
     try {
       const result = await syncPendingTransactions(storeId, cashierId);
       if (result.synced > 0) {
-        console.log(`Auto-sync: ${result.synced} transactions synced`);
       }
     } catch (error) {
       console.error('Auto-sync error:', error);

@@ -78,7 +78,6 @@ export default function OwnerDashboard() {
       setLoading(true);
       const res = await fetch(`/api/dashboard?storeId=demo-store&period=${period}`);
       const data: DashboardStats = await res.json();
-      console.log('Dashboard data:', data);
       setStats(data);
     } catch (error) {
       console.error('Error loading dashboard:', error);

@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const storeId = searchParams.get('storeId') || 'demo-store';
 
-    console.log('🔍 [KDS API] GET request | Store:', storeId);
 
     const setting = await prisma.setting.findUnique({
       where: {
@@ -39,7 +38,6 @@ export async function GET(request: NextRequest) {
 
     const enabled = setting?.value === 'true';
 
-    console.log('✅ [KDS API] Setting loaded | Enabled:', enabled);
 
     return NextResponse.json({
       success: true,
@@ -65,7 +63,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { storeId, enabled } = body;
 
-    console.log('💾 [KDS API] POST request | Store:', storeId, '| Enabled:', enabled);
 
     if (!storeId) {
       return NextResponse.json(
@@ -99,7 +96,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log('✅ [KDS API] Setting saved | Value:', setting.value);
 
     return NextResponse.json({
       success: true,

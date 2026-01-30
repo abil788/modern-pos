@@ -63,7 +63,6 @@ export function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps)
         },
         (error) => {
           // Error callback - can be ignored for continuous scanning
-          console.log('Scanning...', error);
         }
       );
 

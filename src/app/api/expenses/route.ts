@@ -79,7 +79,6 @@ export async function GET(request: NextRequest) {
     ]);
 
     const queryTime = Date.now() - startTime;
-    console.log(`[EXPENSES API] Query took: ${queryTime}ms | Expenses: ${expenses.length} | Page: ${page}`);
 
     return NextResponse.json({
       expenses,
@@ -115,7 +114,6 @@ export async function POST(request: NextRequest) {
     });
 
     const queryTime = Date.now() - startTime;
-    console.log(`[EXPENSES API] Expense created in ${queryTime}ms | ID: ${expense.id}`);
 
     return NextResponse.json(expense, { status: 201 });
   } catch (error) {

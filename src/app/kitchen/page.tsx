@@ -96,7 +96,6 @@ export default function KitchenDisplayPage() {
 
     // Listen for new orders
     channel.bind('new-order', (newOrder: KitchenOrder) => {
-      console.log('📥 New order received:', newOrder);
       
       setOrders((prev) => {
         // Avoid duplicates
@@ -120,7 +119,6 @@ export default function KitchenDisplayPage() {
 
     // Listen for order updates
     channel.bind('order-update', (update: { orderId: string; status: string }) => {
-      console.log('🔄 Order update:', update);
       
       setOrders((prev) =>
         prev.map((order) =>
@@ -134,12 +132,10 @@ export default function KitchenDisplayPage() {
     // Connection status
     pusherClient.connection.bind('connected', () => {
       setIsConnected(true);
-      console.log('✅ Pusher connected');
     });
 
     pusherClient.connection.bind('disconnected', () => {
       setIsConnected(false);
-      console.log('❌ Pusher disconnected');
     });
 
     // Cleanup

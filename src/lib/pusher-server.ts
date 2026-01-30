@@ -26,7 +26,6 @@ export async function triggerKitchenOrder(storeId: string, order: any) {
 
   try {
     await pusherServer.trigger(`kitchen-${storeId}`, 'new-order', order);
-    console.log(`[PUSHER] ✅ Kitchen order sent: ${order.invoiceNumber}`);
   } catch (error) {
     console.error('[PUSHER] ❌ Failed to trigger kitchen order:', error);
   }
@@ -49,7 +48,6 @@ export async function triggerOrderUpdate(
       status,
       timestamp: new Date(),
     });
-    console.log(`[PUSHER] ✅ Order status updated: ${orderId} -> ${status}`);
   } catch (error) {
     console.error('[PUSHER] ❌ Failed to trigger order update:', error);
   }

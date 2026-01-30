@@ -56,7 +56,6 @@ export async function GET(request: NextRequest) {
     
     const { start, end } = getDateRange(period);
 
-    console.log('Dashboard request:', { storeId, period, start, end });
 
     // Parallel queries untuk performa lebih cepat
     const [transactions, products] = await Promise.all([
@@ -167,7 +166,6 @@ export async function GET(request: NextRequest) {
       revenueChart,
     };
 
-    console.log('Dashboard response:', response);
 
     return NextResponse.json(response);
   } catch (error) {

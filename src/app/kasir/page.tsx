@@ -92,13 +92,8 @@ export default function KasirPage() {
         role: session.role || "CASHIER",
       });
 
-      console.log("✅ Cashier logged in:", {
-        id: session.userId,
-        name: session.fullName,
-        timestamp: new Date().toISOString(),
-      });
+      
     } catch (e) {
-      console.error("Failed to parse session:", e);
       toast.error("Session tidak valid. Silakan login kembali.");
       router.push("/login");
     }
@@ -123,8 +118,8 @@ export default function KasirPage() {
         const data = await res.json();
         setStore(data);
       }
-    } catch (error) {
-      console.error("Failed to load store settings:", error);
+    } catch {
+      toast.error("Gagal memuat pengaturan toko");
     }
   };
 
@@ -142,8 +137,7 @@ export default function KasirPage() {
       } else {
         setProducts([]);
       }
-    } catch (error) {
-      console.error("Error loading products:", error);
+    } catch  {
       toast.error("Gagal memuat produk");
       setProducts([]);
     }
@@ -156,15 +150,21 @@ export default function KasirPage() {
       );
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Error loading categories:", error);
+    } catch  {
       setCategories([]);
+      toast.error("Gagal memuat kategori");
     }
   };
 
   const filteredProducts = products.filter((product) => {
+    
+    const productCategoryId = 
+      typeof product.category === 'object' && product.category !== null
+        ? product.category.id
+        : (product as any).categoryId; 
+    
     const matchCategory =
-      selectedCategory === "all" || product.categoryId === selectedCategory;
+      selectedCategory === "all" || productCategoryId === selectedCategory;
     const matchSearch =
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.sku?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -206,7 +206,7 @@ export default function KasirPage() {
       } else {
         toast.error("Produk tidak ditemukan");
       }
-    } catch (error) {
+    } catch  {
       toast.error("Gagal mencari produk");
     }
   };

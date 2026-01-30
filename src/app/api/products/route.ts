@@ -63,7 +63,6 @@ export async function GET(request: NextRequest) {
     ]);
 
     const queryTime = Date.now() - startTime;
-    console.log(`[PRODUCTS API] Query took: ${queryTime}ms | Products: ${products.length} | Page: ${page}`);
 
     return NextResponse.json({
       products,
@@ -143,7 +142,6 @@ export async function POST(request: NextRequest) {
     });
 
     const queryTime = Date.now() - startTime;
-    console.log(`[PRODUCTS API] Product created in ${queryTime}ms | ID: ${product.id}`);
 
     return NextResponse.json(product, { status: 201 });
   } catch (error: any) {
@@ -187,7 +185,6 @@ export async function PUT(request: NextRequest) {
     });
 
     const queryTime = Date.now() - startTime;
-    console.log(`[PRODUCTS API] Product updated in ${queryTime}ms | ID: ${id}`);
 
     return NextResponse.json(product);
   } catch (error) {

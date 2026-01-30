@@ -83,7 +83,6 @@ export default function KasirLayout({ children }: { children: React.ReactNode })
         });
       }
     } catch (error) {
-      console.log('Logout API call failed (might be offline):', error);
     }
     localStorage.removeItem('cashier_session');
     toast.success('Logout berhasil');

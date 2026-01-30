@@ -20,7 +20,6 @@ export const isPusherAvailable = () => pusherClient !== null;
 // Log Pusher status
 if (typeof window !== 'undefined') {
   if (isPusherAvailable()) {
-    console.log('✅ Pusher Client initialized');
   } else {
     console.warn('⚠️ Pusher not configured - using polling fallback');
   }

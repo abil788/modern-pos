@@ -89,7 +89,6 @@ export async function GET(request: NextRequest) {
     const avgTransaction = totalCount > 0 ? totalRevenue / totalCount : 0;
     const queryTime = Date.now() - startTime;
 
-    console.log(`[TRANSACTIONS API] GET Query took: ${queryTime}ms | Transactions: ${transactions.length} | Page: ${page}${search ? ` | Search: "${search}"` : ''}`);
 
     return NextResponse.json({
       transactions,
@@ -141,13 +140,6 @@ export async function POST(request: NextRequest) {
       tableNumber,
     } = body;
 
-    console.log(`[TRANSACTIONS API] Processing transaction | Store: ${storeId} | Cashier: ${cashierId}`);
-    console.log(`[TRANSACTIONS API] Payment: ${paymentMethod} | Channel: ${paymentChannel || 'default'}`);
-    console.log(`[TRANSACTIONS API] Order Type: ${orderType}${tableNumber ? ` | Table: ${tableNumber}` : ''}`);
-    
-    if (promoCode) {
-      console.log(`[TRANSACTIONS API] Promo applied: ${promoCode} | Discount: ${promoDiscount}`);
-    }
 
     // Validation
     if (!items || items.length === 0) {
@@ -185,7 +177,6 @@ export async function POST(request: NextRequest) {
         },
       });
       kdsEnabled = kdsSetting?.value === 'true';
-      console.log(`[TRANSACTIONS API] KDS Status checked in ${Date.now() - kdsCheckStartTime}ms | ${kdsEnabled ? 'ENABLED ✅' : 'DISABLED ❌'}`);
     } catch (error) {
       console.warn('⚠️ Failed to check KDS setting, defaulting to disabled:', error);
       kdsEnabled = false;
@@ -214,7 +205,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[TRANSACTIONS API] Cashier verified in ${Date.now() - cashierStartTime}ms | ${cashier.fullName}`);
 
     // Validate promo code
     let validatedPromo = null;
@@ -234,14 +224,12 @@ export async function POST(request: NextRequest) {
       if (!validatedPromo) {
         console.warn(`[TRANSACTIONS API] Invalid promo code: ${promoCode}`);
       } else {
-        console.log(`[TRANSACTIONS API] Promo validated in ${Date.now() - promoStartTime}ms | ${validatedPromo.code}`);
       }
     }
 
     // Generate invoice number
     const invoiceStartTime = Date.now();
     const invoiceNumber = await generateInvoiceNumber(storeId);
-    console.log(`[TRANSACTIONS API] Invoice generated in ${Date.now() - invoiceStartTime}ms | ${invoiceNumber}`);
 
     // Create transaction
     const transactionStartTime = Date.now();
@@ -313,7 +301,6 @@ export async function POST(request: NextRequest) {
       },
     });
     
-    console.log(`[TRANSACTIONS API] Transaction created in ${Date.now() - transactionStartTime}ms | ${transaction.id} | Channel: ${transaction.paymentChannel}`);
 
     // ✅ Send to Kitchen Display ONLY if KDS is enabled
     if (kdsEnabled) {
@@ -344,13 +331,11 @@ export async function POST(request: NextRequest) {
         };
 
         await triggerKitchenOrder(storeId, kitchenOrder);
-        console.log(`[TRANSACTIONS API] ✅ Kitchen order sent via Pusher in ${Date.now() - pusherStartTime}ms`);
       } catch (pusherError) {
         console.error('[TRANSACTIONS API] ⚠️ Pusher error (non-critical):', pusherError);
         // Transaction still succeeds even if pusher fails
       }
     } else {
-      console.log('[TRANSACTIONS API] ⏭️ Skipping kitchen order send (KDS disabled)');
     }
 
     // Log promo usage
@@ -378,7 +363,6 @@ export async function POST(request: NextRequest) {
           }),
         ]);
 
-        console.log(`[TRANSACTIONS API] Promo logged in ${Date.now() - promoLogStartTime}ms | ${validatedPromo.code}`);
       } catch (promoError) {
         console.error('[TRANSACTIONS API] Error logging promo (non-critical):', promoError);
       }
@@ -401,10 +385,8 @@ export async function POST(request: NextRequest) {
     );
 
     await Promise.all(stockUpdates);
-    console.log(`[TRANSACTIONS API] Stock updated in ${Date.now() - stockStartTime}ms | ${items.length} products`);
 
     const totalTime = Date.now() - startTime;
-    console.log(`[TRANSACTIONS API] ✅ Transaction completed in ${totalTime}ms | Invoice: ${transaction.invoiceNumber}`);
 
     return NextResponse.json({
       ...transaction,
@@ -452,7 +434,6 @@ export async function DELETE(request: NextRequest) {
       where: { id },
     });
 
-    console.log(`[TRANSACTIONS API] Transaction deleted: ${id}`);
 
     return NextResponse.json({ success: true, message: 'Transaction deleted' });
   } catch (error: any) {

@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
     const body: ValidatePromoRequest = await request.json();
     const { code, storeId, subtotal, items, customerPhone } = body;
 
-    console.log('[PROMO VALIDATE] Request:', { code, storeId, subtotal, itemCount: items.length });
 
     if (!code || !storeId) {
       return NextResponse.json(
@@ -213,7 +212,6 @@ export async function POST(request: NextRequest) {
       discount = subtotal;
     }
 
-    console.log('[PROMO VALIDATE] Success:', { code, discount });
 
     return NextResponse.json({
       valid: true,

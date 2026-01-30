@@ -23,7 +23,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Store ID required' }, { status: 400 });
     }
 
-    console.log('📦 Creating backup for store:', storeId);
 
     // Get all data for backup in parallel
     const [store, products, categories, transactions, expenses, settings, users, promos] = await Promise.all([
@@ -110,7 +109,6 @@ export async function GET(request: NextRequest) {
       promosCount: promos.length,
     };
 
-    console.log('✅ Backup summary:', summary);
 
     const backup = {
       version: '2.0', // Updated version for new promo fields
@@ -145,8 +143,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid backup data' }, { status: 400 });
     }
 
-    console.log('🔄 Restoring backup for store:', storeId);
-    console.log('📋 Backup version:', backup.version || '1.0');
 
     let restored = {
       categories: 0,
@@ -158,7 +154,6 @@ export async function POST(request: NextRequest) {
     };
 
     if (backup.categories && Array.isArray(backup.categories)) {
-      console.log('📂 Restoring categories...');
       
       for (const category of backup.categories) {
         try {
@@ -185,7 +180,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (backup.products && Array.isArray(backup.products)) {
-      console.log('📦 Restoring products...');
       
       for (const product of backup.products) {
         try {
@@ -258,7 +252,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (backup.settings && Array.isArray(backup.settings)) {
-      console.log('⚙️ Restoring settings...');
       
       for (const setting of backup.settings) {
         try {
@@ -282,7 +275,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (backup.users && Array.isArray(backup.users)) {
-      console.log('👥 Restoring users...');
       
       for (const user of backup.users) {
         try {
@@ -316,7 +308,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (backup.promos && Array.isArray(backup.promos)) {
-      console.log('🎁 Restoring promos...');
       
       for (const promo of backup.promos) {
         try {
@@ -403,7 +394,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('✅ Backup restored successfully:', restored);
 
     return NextResponse.json({ 
       success: true, 

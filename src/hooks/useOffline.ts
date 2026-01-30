@@ -15,12 +15,10 @@ export function useOffline() {
     // Listen for online/offline events
     const handleOnline = () => {
       setIsOnline(true);
-      console.log('Connection restored');
     };
 
     const handleOffline = () => {
       setIsOnline(false);
-      console.log('Connection lost');
     };
 
     window.addEventListener('online', handleOnline);
