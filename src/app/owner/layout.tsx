@@ -21,6 +21,7 @@ import {
   Clock
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 const navigation = [
   { name: 'Dashboard', href: '/owner', icon: LayoutDashboard },
@@ -122,7 +123,7 @@ export default function OwnerLayout({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           password: password,
-          storeId: 'demo-store',
+          storeId: getClientStoreId(),
         }),
       });
 
@@ -158,7 +159,7 @@ export default function OwnerLayout({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: 'owner',
-          storeId: 'demo-store',
+          storeId: getClientStoreId(),
         }),
       });
     } catch (error) {

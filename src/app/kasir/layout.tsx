@@ -12,6 +12,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Menu, X, User, LogOut, History, Sun, Moon } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 export default function KasirLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -79,7 +80,7 @@ export default function KasirLayout({ children }: { children: React.ReactNode })
         await fetch('/api/auth/logout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: session.userId, storeId: 'demo-store' }),
+          body: JSON.stringify({ userId: session.userId, storeId: getClientStoreId() }),
         });
       }
     } catch (error) {

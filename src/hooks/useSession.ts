@@ -8,6 +8,7 @@ import {
   CashierSession,
   OwnerSession,
 } from '@/lib/auth-utils';
+import { getClientStoreId } from '@/lib/store-config';
 
 export function useSession() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export function useSession() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId: cashierSession.userId,
-            storeId: 'demo-store',
+            storeId: getClientStoreId(),
           }),
         });
       } catch (error) {

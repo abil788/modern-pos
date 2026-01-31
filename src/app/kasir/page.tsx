@@ -27,6 +27,7 @@ import { EnhancedCheckout } from "@/components/kasir/EnhancedCheckout";
 import { NotificationBanner } from "@/components/shared/NotificationBanner";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import toast, { Toaster } from "react-hot-toast";
+import { getClientStoreId } from "@/lib/store-config";
 
 export default function KasirPage() {
   const router = useRouter();
@@ -113,7 +114,7 @@ export default function KasirPage() {
 
   const loadStoreSettings = async () => {
     try {
-      const res = await fetch("/api/settings?storeId=demo-store");
+      const res = await fetch(`/api/settings?storeId=${getClientStoreId()}`);
       if (res.ok) {
         const data = await res.json();
         setStore(data);
@@ -126,7 +127,7 @@ export default function KasirPage() {
   const loadProducts = async () => {
     try {
       const res = await fetch(
-        `/api/products?storeId=${store?.id || "demo-store"}&limit=1000`,
+        `/api/products?storeId=${store?.id || getClientStoreId()}&limit=1000`,
       );
       const data = await res.json();
 
@@ -146,7 +147,7 @@ export default function KasirPage() {
   const loadCategories = async () => {
     try {
       const res = await fetch(
-        `/api/categories?storeId=${store?.id || "demo-store"}`,
+        `/api/categories?storeId=${store?.id || getClientStoreId()}`,
       );
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
@@ -190,7 +191,7 @@ export default function KasirPage() {
   const handleScanBarcode = async (barcode: string) => {
     try {
       const res = await fetch(
-        `/api/products?storeId=${store?.id || "demo-store"}&barcode=${barcode}`,
+        `/api/products?storeId=${store?.id || getClientStoreId()}&barcode=${barcode}`,
       );
       const data = await res.json();
 
@@ -626,7 +627,7 @@ export default function KasirPage() {
         items={items}
         currentCashier={currentCashier}
         products={products}
-        storeId={store?.id || "demo-store"}
+        storeId={store?.id || getClientStoreId()}
         onComplete={async (paymentData) => {
           const transactionData = {
             items: items.map((item) => {
@@ -655,7 +656,7 @@ export default function KasirPage() {
             notes: paymentData.notes,
             promoCode: paymentData.promoCode,
             promoDiscount: paymentData.promoDiscount || 0,
-            storeId: store?.id || "demo-store",
+            storeId: store?.id || getClientStoreId(),
             cashierId: currentCashier.id,
 
             // Kitchen Display System fields

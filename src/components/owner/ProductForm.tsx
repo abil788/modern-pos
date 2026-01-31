@@ -12,6 +12,7 @@ import { X, Upload, Image as ImageIcon } from 'lucide-react';
 import { Product, Category } from '@/types';
 import { generateSKU } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 interface ProductFormProps {
   product?: Product | null;
@@ -76,7 +77,7 @@ export function ProductForm({ product, isOpen, onClose, onSuccess }: ProductForm
 
   const loadCategories = async () => {
     try {
-      const res = await fetch('/api/categories?storeId=demo-store');
+      const res = await fetch(`/api/categories?storeId=${getClientStoreId()}`);
       const data = await res.json();
       setCategories(data);
     } catch (error) {
@@ -183,7 +184,7 @@ export function ProductForm({ product, isOpen, onClose, onSuccess }: ProductForm
         cost: parseFloat(formData.cost || '0'),
         stock: parseInt(formData.stock || '0'),
         minStock: parseInt(formData.minStock || '5'),
-        storeId: 'demo-store',
+        storeId: getClientStoreId(),
       };
 
       const res = await fetch(endpoint, {

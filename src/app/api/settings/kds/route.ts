@@ -19,12 +19,13 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { getStoreId } from '@/lib/store-config';
 
 // GET - Load KDS Setting
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const storeId = searchParams.get('storeId') || 'demo-store';
+    const storeId = searchParams.get('storeId') || getStoreId();
 
 
     const setting = await prisma.setting.findUnique({
@@ -47,10 +48,10 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ [KDS API] GET Error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
         enabled: false,
-        error: error.message 
+        error: error.message
       },
       { status: 500 }
     );
@@ -101,16 +102,16 @@ export async function POST(request: NextRequest) {
       success: true,
       enabled: setting.value === 'true',
       setting,
-      message: enabled 
-        ? 'Kitchen Display System diaktifkan' 
+      message: enabled
+        ? 'Kitchen Display System diaktifkan'
         : 'Kitchen Display System dinonaktifkan',
     });
   } catch (error: any) {
     console.error('❌ [KDS API] POST Error:', error);
     return NextResponse.json(
-      { 
+      {
         success: false,
-        error: error.message 
+        error: error.message
       },
       { status: 500 }
     );

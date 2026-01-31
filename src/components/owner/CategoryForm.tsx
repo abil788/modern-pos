@@ -24,6 +24,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { Category } from '@/types';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 interface CategoryFormProps {
   category?: Category | null;
@@ -52,7 +53,7 @@ export function CategoryForm({ category, isOpen, onClose, onSuccess }: CategoryF
       const res = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, storeId: 'demo-store' }),
+        body: JSON.stringify({ ...formData, storeId: getClientStoreId() }),
       });
 
       if (!res.ok) throw new Error('Failed to save');

@@ -18,6 +18,7 @@ import { Receipt, Eye, Search, Calendar, ChevronLeft, ChevronRight } from 'lucid
 import { Transaction } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 interface Cashier {
   id: string;
@@ -53,7 +54,7 @@ export default function HistoryPage() {
     try {
       setLoading(true);
       const params = new URLSearchParams({
-        storeId: 'demo-store',
+        storeId: getClientStoreId(),
         page: currentPage.toString(),
         limit: ITEMS_PER_PAGE.toString(),
       });
@@ -105,7 +106,7 @@ export default function HistoryPage() {
 
   const loadCashiers = async () => {
     try {
-      const res = await fetch('/api/cashiers?storeId=demo-store');
+      const res = await fetch(`/api/cashiers?storeId=${getClientStoreId()}`);
       if (res.ok) {
         const data = await res.json();
         const cashierMap = data.reduce((acc: Record<string, Cashier>, cashier: Cashier) => {

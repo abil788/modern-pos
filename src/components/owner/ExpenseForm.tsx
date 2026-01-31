@@ -24,6 +24,7 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { Expense } from '@/types';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 const CATEGORIES = ['Sewa', 'Listrik', 'Air', 'Gaji', 'Transportasi', 'Pembelian Stok', 'Marketing', 'Lain-lain'];
 
@@ -55,7 +56,7 @@ export function ExpenseForm({ expense, isOpen, onClose, onSuccess }: ExpenseForm
       const res = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, storeId: 'demo-store' }),
+        body: JSON.stringify({ ...formData, storeId: getClientStoreId() }),
       });
 
       if (!res.ok) throw new Error('Failed');

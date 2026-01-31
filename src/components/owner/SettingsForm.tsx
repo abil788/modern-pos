@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { Store, Save, Lock, Eye, EyeOff } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 export default function SettingsPage() {
   const { store, setStore } = useSettingsStore();
@@ -54,7 +55,7 @@ export default function SettingsPage() {
 
   const loadSettings = async () => {
     try {
-      const res = await fetch('/api/settings?storeId=demo-store');
+      const res = await fetch(`/api/settings?storeId=${getClientStoreId()}`);
       const data = await res.json();
       setStore(data);
     } catch (error) {
@@ -72,7 +73,7 @@ export default function SettingsPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: store?.id || 'demo-store',
+          id: store?.id || getClientStoreId(),
           ...formData,
           taxRate: parseFloat(formData.taxRate),
         }),

@@ -11,6 +11,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Tag } from 'lucide-react';
 import { Category } from '@/types';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 const EMOJI_OPTIONS = ['🍔', '🥤', '🍿', '✏️', '📱', '👕', '🎮', '📚', '🏠', '🎨'];
 const COLOR_OPTIONS = [
@@ -37,7 +38,7 @@ export default function CategoriesPage() {
   const loadCategories = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/categories?storeId=demo-store');
+      const res = await fetch(`/api/categories?storeId=${getClientStoreId()}`);
       const data = await res.json();
       setCategories(data);
     } catch (error) {
@@ -66,7 +67,7 @@ export default function CategoriesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          storeId: 'demo-store',
+          storeId: getClientStoreId(),
         }),
       });
 

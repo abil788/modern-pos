@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, Wifi, WifiOff, Package, X } from 'lucide-react';
 import { useOffline } from '@/hooks/useOffline';
+import { getClientStoreId } from '@/lib/store-config';
 
 interface Notification {
   id: string;
@@ -87,7 +88,7 @@ export function NotificationBanner() {
 
   const checkLowStock = async () => {
     try {
-      const res = await fetch('/api/products?storeId=demo-store');
+      const res = await fetch(`/api/products?storeId=${getClientStoreId()}`);
       const data = await res.json();
       const products = data.products || data;
       const lowStock = products.filter(

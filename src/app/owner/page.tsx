@@ -24,6 +24,7 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, Package, DollarSign, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { getClientStoreId } from '@/lib/store-config';
 
 // Types
 interface TopProduct {
@@ -76,7 +77,7 @@ export default function OwnerDashboard() {
   const loadDashboardStats = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/dashboard?storeId=demo-store&period=${period}`);
+      const res = await fetch(`/api/dashboard?storeId=${getClientStoreId()}&period=${period}`);
       const data: DashboardStats = await res.json();
       setStats(data);
     } catch (error) {

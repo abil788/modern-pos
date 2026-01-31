@@ -6,6 +6,7 @@ import { X, Printer, Download } from 'lucide-react';
 import { Transaction } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import QRCode from 'qrcode';
+import { getClientStoreId } from '@/lib/store-config';
 
 interface ReceiptProps {
   transaction: Transaction;
@@ -62,7 +63,7 @@ export function Receipt({
   const loadCashierName = async (cashierId: string) => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/cashiers?id=${cashierId}&storeId=demo-store`);
+      const res = await fetch(`/api/cashiers?id=${cashierId}&storeId=${getClientStoreId()}`);
       if (res.ok) {
         const data = await res.json();
         if (data && data.length > 0) {

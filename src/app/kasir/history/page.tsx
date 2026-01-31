@@ -14,6 +14,7 @@ import { Transaction } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import toast from 'react-hot-toast';
 import { debounce } from 'lodash';
+import { getClientStoreId } from '@/lib/store-config';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -76,7 +77,7 @@ export default function KasirHistoryPage() {
       
       // Build query params
       const params = new URLSearchParams({
-        storeId: 'demo-store',
+        storeId: getClientStoreId(),
         cashierId: session.userId,
         page: currentPage.toString(),
         limit: ITEMS_PER_PAGE.toString(),

@@ -11,6 +11,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, User, Lock, Unlock, Camera, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 interface Cashier {
   id: string;
@@ -44,7 +45,7 @@ export default function StaffManagementPage() {
   const loadCashiers = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/staff?storeId=demo-store');
+      const res = await fetch(`/api/staff?storeId=${getClientStoreId()}`);
       const data = await res.json();
       setCashiers(data);
     } catch (error) {
@@ -84,7 +85,7 @@ export default function StaffManagementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          storeId: 'demo-store',
+          storeId: getClientStoreId(),
         }),
       });
 
@@ -110,7 +111,7 @@ export default function StaffManagementPage() {
     if (!confirm(`Yakin ingin menghapus kasir "${name}"?`)) return;
 
     try {
-      const res = await fetch(`/api/staff/${id}?storeId=demo-store`, {
+      const res = await fetch(`/api/staff/${id}?storeId=${getClientStoreId()}`, {
         method: 'DELETE',
       });
 
@@ -130,7 +131,7 @@ export default function StaffManagementPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           isActive: !cashier.isActive,
-          storeId: 'demo-store',
+          storeId: getClientStoreId(),
         }),
       });
 

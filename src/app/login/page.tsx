@@ -11,6 +11,7 @@
 import { useState, useEffect } from 'react';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 interface Cashier {
   id: string;
@@ -41,7 +42,7 @@ export default function LoginPage() {
 
   const loadCashiers = async () => {
     try {
-      const res = await fetch('/api/staff?storeId=demo-store&activeOnly=true');
+      const res = await fetch(`/api/staff?storeId=${getClientStoreId()}&activeOnly=true`);
       const data = await res.json();
       setCashiers(data);
     } catch (error) {
@@ -52,7 +53,7 @@ export default function LoginPage() {
   // ✅ Load KDS Setting
   const loadKDSSetting = async () => {
     try {
-      const res = await fetch('/api/settings/kds?storeId=demo-store');
+      const res = await fetch(`/api/settings/kds?storeId=${getClientStoreId()}`);
       if (res.ok) {
         const data = await res.json();
         setKdsEnabled(data.enabled || false);
@@ -133,7 +134,7 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           password: ownerPassword,
-          storeId: 'demo-store',
+          storeId: getClientStoreId(),
         }),
       });
 

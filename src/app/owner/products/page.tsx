@@ -19,6 +19,7 @@ import { ProductForm } from '@/components/owner/ProductForm';
 import { BarcodeGenerator } from '@/components/owner/BarcodeGenerator'; 
 import { QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 const ITEMS_PER_PAGE = 5;
 
@@ -47,7 +48,7 @@ export default function ProductsPage() {
     try {
       setLoading(true);
       const params = new URLSearchParams({
-        storeId: 'demo-store',
+        storeId: getClientStoreId(),
         page: currentPage.toString(),
         limit: ITEMS_PER_PAGE.toString(),
       });
@@ -79,7 +80,7 @@ export default function ProductsPage() {
 
   const loadCategories = async () => {
     try {
-      const res = await fetch('/api/categories?storeId=demo-store');
+      const res = await fetch(`/api/categories?storeId=${getClientStoreId()}`);
       const data = await res.json();
       setCategories(data);
     } catch (error) {

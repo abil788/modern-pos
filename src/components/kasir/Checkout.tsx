@@ -22,6 +22,7 @@ import { useCartStore } from '@/store/cartStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 interface CheckoutProps {
   isOpen: boolean;
@@ -81,7 +82,7 @@ export function Checkout({ isOpen, onClose }: CheckoutProps) {
         customerPhone: customerPhone || undefined,
         notes: notes || undefined,
         cashierId: 'demo-cashier', // TODO: Get from auth
-        storeId: store?.id || 'demo-store',
+        storeId: store?.id || getClientStoreId(),
       };
 
       const res = await fetch('/api/transactions', {

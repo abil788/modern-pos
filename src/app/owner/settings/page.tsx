@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react';
 import { Store, Save, Lock, Eye, EyeOff, Shield, Download, Upload } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 export default function SettingsPage() {
   const { store, setStore } = useSettingsStore();
@@ -71,7 +72,7 @@ export default function SettingsPage() {
 
   const loadSettings = async () => {
     try {
-      const res = await fetch('/api/settings?storeId=demo-store');
+      const res = await fetch(`/api/settings?storeId=${getClientStoreId()}`);
       const data = await res.json();
       setStore(data);
     } catch (error) {
@@ -82,7 +83,7 @@ export default function SettingsPage() {
   // ✅ Load KDS Setting
   const loadKDSSetting = async () => {
     try {
-      const res = await fetch('/api/settings/kds?storeId=demo-store');
+      const res = await fetch(`/api/settings/kds?storeId=${getClientStoreId()}`);
       if (res.ok) {
         const data = await res.json();
         setKdsEnabled(data.enabled || false);
@@ -100,7 +101,7 @@ export default function SettingsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          storeId: store?.id || 'demo-store',
+          storeId: store?.id || getClientStoreId(),
           enabled,
         }),
       });
@@ -133,7 +134,7 @@ export default function SettingsPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: store?.id || 'demo-store',
+          id: store?.id || getClientStoreId(),
           ...formData,
           taxRate: parseFloat(formData.taxRate),
         }),
@@ -179,7 +180,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           currentPassword: passwordData.currentPassword,
           newPassword: passwordData.newPassword,
-          storeId: 'demo-store',
+          storeId: getClientStoreId(),
         }),
       });
 
@@ -215,7 +216,7 @@ export default function SettingsPage() {
       setBackupLoading(true);
       toast.loading('Sedang membuat backup...', { id: 'backup' });
       
-      const res = await fetch('/api/backup?storeId=demo-store');
+      const res = await fetch(`/api/backup?storeId=${getClientStoreId()}`);
       
       if (!res.ok) {
         const errorData = await res.json();

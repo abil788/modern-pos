@@ -18,6 +18,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { getStoreId } from '@/lib/store-config';
 
 function getDateRange(period: string) {
   const now = new Date();
@@ -51,9 +52,9 @@ function getDateRange(period: string) {
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const storeId = searchParams.get('storeId') || 'demo-store';
+    const storeId = searchParams.get('storeId') || getStoreId();
     const period = searchParams.get('period') || 'today';
-    
+
     const { start, end } = getDateRange(period);
 
 
@@ -104,7 +105,7 @@ export async function GET(request: NextRequest) {
         const profit = (item.price - cost) * item.quantity;
         transactionItemProfit += profit;
       }
-      
+
       const netProfit = transactionItemProfit - (transaction.promoDiscount || 0);
       todayProfit += netProfit;
     }
@@ -114,7 +115,7 @@ export async function GET(request: NextRequest) {
 
     // Top products
     const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
-    
+
     transactions.forEach(t => {
       t.items.forEach(item => {
         if (!productSales[item.productId]) {
@@ -141,7 +142,7 @@ export async function GET(request: NextRequest) {
 
     // Revenue chart data - Group by date
     const revenueByDate: Record<string, number> = {};
-    
+
     transactions.forEach(t => {
       const date = new Date(t.createdAt).toISOString().split('T')[0];
       if (!revenueByDate[date]) {

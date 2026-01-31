@@ -13,6 +13,7 @@ import { Calendar, Wallet, Building2, CreditCard, Smartphone, FileSpreadsheet, T
 import { PAYMENT_METHODS, calculatePaymentSummary } from '@/lib/payment-config';
 import { formatCurrency } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 export default function ReconciliationPage() {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -26,7 +27,7 @@ export default function ReconciliationPage() {
   const loadReconciliation = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/reconciliation?storeId=demo-store&date=${date}&summary=true`);
+      const res = await fetch(`/api/reconciliation?storeId=${getClientStoreId()}&date=${date}&summary=true`);
       const result = await res.json();
       setData(result);
     } catch (error) {
@@ -45,7 +46,7 @@ export default function ReconciliationPage() {
     try {
       toast.loading('Memuat data transaksi...', { id: 'export' });
       
-      const res = await fetch(`/api/reconciliation?storeId=demo-store&date=${date}&summary=false`);
+      const res = await fetch(`/api/reconciliation?storeId=${getClientStoreId()}&date=${date}&summary=false`);
       const fullData = await res.json();
       
       toast.loading('Membuat file Excel...', { id: 'export' });

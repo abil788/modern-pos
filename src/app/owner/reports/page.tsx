@@ -15,6 +15,7 @@ import { Transaction } from '@/types';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { exportTransactionsPDF, exportTransactionsExcel, downloadPDF, downloadExcel } from '@/lib/export';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 const ITEMS_PER_PAGE = 5;
@@ -73,13 +74,13 @@ export default function ReportsPage() {
       
       // Load report data
       const reportRes = await fetch(
-        `/api/reports?storeId=demo-store&type=${filterType}&startDate=${startDate}&endDate=${endDate}`
+        `/api/reports?storeId=${getClientStoreId()}&type=${filterType}&startDate=${startDate}&endDate=${endDate}`
       );
       const reportData = await reportRes.json();
       
       // Load transactions for export
       const transRes = await fetch(
-        `/api/transactions?storeId=demo-store&startDate=${startDate}&endDate=${endDate}&limit=1000`
+        `/api/transactions?storeId=${getClientStoreId()}&startDate=${startDate}&endDate=${endDate}&limit=1000`
       );
       const transData = await transRes.json();
       

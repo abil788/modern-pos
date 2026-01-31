@@ -14,6 +14,7 @@ import { Plus, Edit, Trash2, Tag, Percent, DollarSign, Clock, Users, Calendar, T
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Promo } from '@/types';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 const PROMO_TYPES = [
   { value: 'PERCENTAGE', label: 'Persentase (%)', icon: Percent },
@@ -70,7 +71,7 @@ export default function PromosPage() {
   const loadPromos = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/promos?storeId=demo-store');
+      const res = await fetch(`/api/promos?storeId=${getClientStoreId()}`);
       const data = await res.json();
       setPromos(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -83,7 +84,7 @@ export default function PromosPage() {
 
   const loadProducts = async () => {
     try {
-      const res = await fetch('/api/products?storeId=demo-store&limit=1000');
+      const res = await fetch(`/api/products?storeId=${getClientStoreId()}&limit=1000`);
       const data = await res.json();
       setProducts(data.products || data || []);
     } catch (error) {
@@ -93,7 +94,7 @@ export default function PromosPage() {
 
   const loadCategories = async () => {
     try {
-      const res = await fetch('/api/categories?storeId=demo-store');
+      const res = await fetch(`/api/categories?storeId=${getClientStoreId()}`);
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -126,7 +127,7 @@ export default function PromosPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          storeId: 'demo-store',
+          storeId: getClientStoreId(),
         }),
       });
 

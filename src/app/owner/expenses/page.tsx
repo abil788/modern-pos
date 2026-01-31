@@ -15,6 +15,7 @@ import { Plus, Edit, Trash2, Search, DollarSign, Calendar, TrendingDown, Chevron
 import { Expense } from '@/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import toast from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 const EXPENSE_CATEGORIES = [
   'Sewa',
@@ -64,7 +65,7 @@ export default function ExpensesPage() {
     try {
       setLoading(true);
       const params = new URLSearchParams({
-        storeId: 'demo-store',
+        storeId: getClientStoreId(),
         page: currentPage.toString(),
         limit: ITEMS_PER_PAGE.toString(),
       });
@@ -121,7 +122,7 @@ export default function ExpensesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          storeId: 'demo-store',
+          storeId: getClientStoreId(),
         }),
       });
 

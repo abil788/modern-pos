@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
 import toast, { Toaster } from 'react-hot-toast';
+import { getClientStoreId } from '@/lib/store-config';
 
 interface KitchenOrderItem {
   id: string;
@@ -56,7 +57,8 @@ interface KitchenOrder {
   completedAt?: Date;
 }
 
-const STORE_ID = 'demo-store';
+// Dynamic store ID from centralized config
+const getStoreIdForKitchen = () => getClientStoreId();
 
 export default function KitchenDisplayPage() {
   const router = useRouter();
@@ -92,7 +94,7 @@ export default function KitchenDisplayPage() {
       return () => clearInterval(interval);
     }
 
-    const channel = pusherClient.subscribe(`kitchen-${STORE_ID}`);
+    const channel = pusherClient.subscribe(`kitchen-${getStoreIdForKitchen()}`);
 
     // Listen for new orders
     channel.bind('new-order', (newOrder: KitchenOrder) => {
@@ -149,7 +151,7 @@ export default function KitchenDisplayPage() {
     try {
       setLoading(true);
       const res = await fetch(
-        `/api/kds?storeId=${STORE_ID}&status=pending,preparing`
+        `/api/kds?storeId=${getStoreIdForKitchen()}&status=pending,preparing`
       );
       
       if (!res.ok) throw new Error('Failed to fetch orders');
