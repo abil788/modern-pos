@@ -46,6 +46,7 @@ interface DashboardStats {
   lowStockProducts: number;
   topProducts: TopProduct[];
   revenueChart: RevenueChartData[];
+  recentTransactions: any[];
 }
 
 // Format currency
@@ -90,6 +91,7 @@ export default function OwnerDashboard() {
         lowStockProducts: 0,
         topProducts: [],
         revenueChart: [],
+        recentTransactions: [],
       });
     } finally {
       setLoading(false);
@@ -286,23 +288,33 @@ export default function OwnerDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-6 py-4 text-sm font-medium dark:text-white">INV-20250103-000{i}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                    {new Date().toLocaleDateString('id-ID')}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">-</td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-xs">
-                      CASH
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-right dark:text-white">
-                    {formatCurrency(50000 * i)}
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {stats?.recentTransactions && stats.recentTransactions.length > 0 ? (
+                stats.recentTransactions.map((tx: any) => (
+                  <tr key={tx.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-6 py-4 text-sm font-medium dark:text-white">{tx.invoiceNumber}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                      {new Date(tx.date).toLocaleDateString('id-ID')}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{tx.customerName}</td>
+                    <td className="px-6 py-4 text-sm">
+                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-xs">
+                        {tx.paymentMethod}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-semibold text-right dark:text-white">
+                      {formatCurrency(tx.total)}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
+                    Belum ada transaksi hari ini
                   </td>
                 </tr>
-              ))}
+              )}
+            </tbody>
             </tbody>
           </table>
         </div>

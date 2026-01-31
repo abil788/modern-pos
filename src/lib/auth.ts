@@ -13,6 +13,22 @@ export async function verifyOwnerPassword(password: string, storeId: string) {
   });
 
   if (!owner) {
+    // Check if this store has ANY users
+    const userCount = await prisma.user.count({
+      where: { storeId },
+    });
+
+    // If store is completely new (0 users), Auto-Seed the Owner
+    if (userCount === 0) {
+      console.log(`[AUTH] New store detected: ${storeId}. Seeding default owner.`);
+      const newOwner = await createDefaultOwner(storeId);
+
+      // If the password matches the default (admin123), allow login immediately
+      // We need to re-fetch or just return the newOwner if we trust the password provided matches
+      // But better to let the flow match the password below
+      return verifyOwnerPassword(password, storeId);
+    }
+
     throw new Error('Owner account not found');
   }
 
@@ -40,7 +56,7 @@ export async function verifyOwnerPassword(password: string, storeId: string) {
 
   if (!isValid) {
     const newAttempts = owner.failedAttempts + 1;
-    
+
     if (newAttempts >= MAX_ATTEMPTS) {
       // Lock account
       await prisma.user.update({
@@ -81,10 +97,31 @@ export async function hashPassword(password: string): Promise<string> {
 
 export async function createDefaultOwner(storeId: string, password: string = 'admin123') {
   const hashedPassword = await hashPassword(password);
-  
+  // Default username is 'owner' for demo, but unique for others
+  const uniqueUsername = storeId === 'demo-store' ? 'owner' : `owner-${storeId}`;
+
+  // Ensure Store exists to prevent FK Constraint Violation
+  const existingStore = await prisma.store.findUnique({
+    where: { id: storeId }
+  });
+
+  if (!existingStore) {
+    console.log(`[AUTH] Store '${storeId}' not found. Creating new store record...`);
+    await prisma.store.create({
+      data: {
+        id: storeId,
+        name: storeId.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+        licenseKey: `LIC-${storeId.toUpperCase()}-${Math.floor(Math.random() * 10000)}`,
+        currency: 'IDR',
+        taxRate: 11, // PPN 11% default
+        primaryColor: '#3B82F6',
+      }
+    });
+  }
+
   return await prisma.user.create({
     data: {
-      username: 'owner',
+      username: uniqueUsername,
       password: hashedPassword,
       role: 'OWNER',
       fullName: 'Store Owner',
@@ -95,7 +132,7 @@ export async function createDefaultOwner(storeId: string, password: string = 'ad
 
 export async function createCashier(storeId: string, username: string, password: string, fullName: string) {
   const hashedPassword = await hashPassword(password);
-  
+
   return await prisma.user.create({
     data: {
       username,

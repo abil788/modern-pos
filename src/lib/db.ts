@@ -8,8 +8,8 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: process.env.NODE_ENV === 'development' 
-      ? ['query', 'error', 'warn'] 
+    log: process.env.NODE_ENV === 'development'
+      ? ['query', 'error', 'warn']
       : ['error'],
   });
 
@@ -20,12 +20,12 @@ if (process.env.NODE_ENV !== 'production') {
 // Helper functions
 export async function getStoreSettings(storeId: string) {
   const startTime = Date.now();
-  
+
   const settings = await prisma.setting.findMany({
     where: { storeId },
   });
-  
-  
+
+
   return settings.reduce((acc, setting) => {
     acc[setting.key] = setting.value;
     return acc;
@@ -34,7 +34,7 @@ export async function getStoreSettings(storeId: string) {
 
 export async function updateStoreSetting(storeId: string, key: string, value: string) {
   const startTime = Date.now();
-  
+
   const result = await prisma.setting.upsert({
     where: {
       storeId_key: {
@@ -49,16 +49,16 @@ export async function updateStoreSetting(storeId: string, key: string, value: st
       value,
     },
   });
-  
+
   return result;
 }
 
 export async function generateInvoiceNumber(storeId: string): Promise<string> {
   const startTime = Date.now();
-  
+
   const today = new Date();
   const prefix = `INV-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-  
+
   const lastTransaction = await prisma.transaction.findFirst({
     where: {
       storeId,
@@ -81,8 +81,7 @@ export async function generateInvoiceNumber(storeId: string): Promise<string> {
   }
 
   const invoiceNumber = `${prefix}-${String(sequence).padStart(4, '0')}`;
-  
-  
+
   return invoiceNumber;
 }
 
@@ -93,7 +92,7 @@ export async function logActivity(
   details?: string
 ) {
   const startTime = Date.now();
-  
+
   await prisma.activityLog.create({
     data: {
       userId,
@@ -102,7 +101,7 @@ export async function logActivity(
       details,
     },
   });
-  
+
 }
 
 // Graceful shutdown

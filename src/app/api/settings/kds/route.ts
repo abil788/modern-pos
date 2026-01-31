@@ -19,7 +19,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { getStoreId } from '@/lib/store-config';
+import { getStoreId } from '@/lib/store-config-server';
 
 // GET - Load KDS Setting
 export async function GET(request: NextRequest) {

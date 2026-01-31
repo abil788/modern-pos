@@ -18,7 +18,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { getStoreId } from '@/lib/store-config';
+import { getStoreId } from '@/lib/store-config-server';
+
+export const dynamic = 'force-dynamic';
 
 function getDateRange(period: string) {
   const now = new Date();
@@ -52,11 +54,25 @@ function getDateRange(period: string) {
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const storeId = searchParams.get('storeId') || getStoreId();
+    // Log debug info
+    const queryStoreId = searchParams.get('storeId');
+    const headerStoreId = getStoreId();
+    console.log(`[Dashboard API] Query: ${queryStoreId}, Header/Context: ${headerStoreId}`);
+
+    // PRIORITY FIX: Prefer header context (middleware) over query param if query is default 'demo-store'
+    // This allows middleware to dictate the store even if client sends legacy fallback
+    let storeId = headerStoreId;
+    if (queryStoreId && queryStoreId !== 'demo-store') {
+      storeId = queryStoreId;
+    }
+
+    // If both resolve to default or are missing
+    if (!storeId) storeId = 'demo-store';
+
+    console.log(`[Dashboard API] Final Used StoreID: ${storeId}`);
+
     const period = searchParams.get('period') || 'today';
-
     const { start, end } = getDateRange(period);
-
 
     // Parallel queries untuk performa lebih cepat
     const [transactions, products] = await Promise.all([
@@ -165,6 +181,7 @@ export async function GET(request: NextRequest) {
       lowStockProducts,
       topProducts,
       revenueChart,
+      debugStoreId: storeId,
     };
 
 

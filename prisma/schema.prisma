@@ -438,7 +438,7 @@ model ProductVariation {
 
 model Transaction {
   id               String   @id @default(cuid())
-  invoiceNumber    String   @unique
+  invoiceNumber    String
   subtotal         Float
   tax              Float    @default(0)
   discount         Float    @default(0)
@@ -478,6 +478,7 @@ model Transaction {
   cashier User              @relation(fields: [cashierId], references: [id])
   items   TransactionItem[]
 
+  @@unique([storeId, invoiceNumber])
   @@index([storeId, createdAt])
   @@index([invoiceNumber])
   @@index([createdAt])

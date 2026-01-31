@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
     const storeId = searchParams.get('storeId');
     const activeOnly = searchParams.get('activeOnly') === 'true';
 
+    console.log(`[API STAFF] Request received. Query Param storeId: ${storeId}`);
+
     if (!storeId) {
       return NextResponse.json(
         { error: 'Store ID required' },
