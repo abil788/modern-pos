@@ -15,15 +15,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyOwnerPassword } from '@/lib/auth';
 import { logActivity } from '@/lib/db';
+import { createSession } from '@/lib/auth-server';
 
 export async function POST(request: NextRequest) {
   try {
     const { password, storeId } = await request.json();
-    
+
+    // 1. Verify credentials against DB
     const user = await verifyOwnerPassword(password, storeId);
-    
-    await logActivity(user.id, storeId, 'OWNER_LOGIN', 'Owner logged in');
-    
+
+    // 2. Log activity
+    await logActivity(user.id, storeId, 'OWNER_LOGIN', 'Owner logged in via Secure API');
+
+    // 3. Create Secure Session (HTTP-Only Cookie)
+    await createSession({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+      storeId: user.storeId,
+      fullName: user.fullName,
+    });
+
+    // 4. Return success (Client doesn't need token, it's in the cookie)
     return NextResponse.json({
       success: true,
       user: {
@@ -34,6 +47,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: any) {
+    console.error('Login error:', error);
     return NextResponse.json(
       { success: false, error: error.message },
       { status: 400 }

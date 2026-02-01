@@ -53,13 +53,14 @@ export async function updateStoreSetting(storeId: string, key: string, value: st
   return result;
 }
 
-export async function generateInvoiceNumber(storeId: string): Promise<string> {
+export async function generateInvoiceNumber(storeId: string, tx?: any): Promise<string> {
   const startTime = Date.now();
+  const client = tx || prisma;
 
   const today = new Date();
   const prefix = `INV-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
 
-  const lastTransaction = await prisma.transaction.findFirst({
+  const lastTransaction = await client.transaction.findFirst({
     where: {
       storeId,
       invoiceNumber: {

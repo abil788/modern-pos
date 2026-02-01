@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logActivity } from '@/lib/db';
+import { logout } from '@/lib/auth-server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +24,9 @@ export async function POST(request: NextRequest) {
       // Log logout activity
       await logActivity(userId, storeId, 'OWNER_LOGOUT', 'Owner logged out');
     }
+
+    // Clear session cookie
+    await logout();
 
     return NextResponse.json({
       success: true,

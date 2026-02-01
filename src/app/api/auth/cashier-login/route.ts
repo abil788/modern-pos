@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { logActivity } from '@/lib/db';
+import { createSession } from '@/lib/auth-server';
 
 const MAX_ATTEMPTS = 3;
 const LOCK_DURATION = 15 * 60 * 1000; // 15 menit
@@ -178,6 +179,15 @@ export async function POST(request: NextRequest) {
       'CASHIER_LOGIN',
       `${cashier.fullName} login ke sistem`
     );
+
+    // Create Secure Session
+    await createSession({
+      id: cashier.id,
+      username: cashier.username,
+      role: cashier.role,
+      storeId: cashier.storeId,
+      fullName: cashier.fullName,
+    });
 
     return NextResponse.json({
       success: true,

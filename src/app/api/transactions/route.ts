@@ -19,18 +19,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma, { generateInvoiceNumber } from '@/lib/db';
 import { triggerKitchenOrder } from '@/lib/pusher-server';
+import { getSessionFromRequest } from '@/lib/auth-server';
 
 export async function GET(request: NextRequest) {
+  // ... existing GET implementation ...
+  // ideally GET should also be protected, but focusing on POST (Creation) first as requested
+  // I will leave GET for now as it wasn't the primary vulnerability (though it leaks data)
+  // Let's protect POST first.
   const startTime = Date.now();
-  
+
   try {
     const searchParams = request.nextUrl.searchParams;
     const storeId = searchParams.get('storeId');
     const cashierId = searchParams.get('cashierId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const search = searchParams.get('search'); 
-    
+    const search = searchParams.get('search');
+
+    // Check Authorization for GET as well
+    const session = await getSessionFromRequest(request);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
@@ -114,8 +125,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
-  
+
   try {
+    // 1. Validate Session FIRST
+    const session = await getSessionFromRequest(request);
+    if (!session || !session.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Please login again.' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const {
       items,
@@ -132,7 +152,6 @@ export async function POST(request: NextRequest) {
       storeId,
       promoCode,
       promoDiscount,
-      cashierId,
       paymentChannel,
       paymentReference,
       // Kitchen Display System fields
@@ -140,6 +159,15 @@ export async function POST(request: NextRequest) {
       tableNumber,
     } = body;
 
+    // Use User ID from Session
+    const cashierId = session.user.id;
+
+    // Ensure Store ID matches session
+    if (storeId !== session.user.storeId && session.user.role !== 'SUPERADMIN') {
+      if (storeId !== session.user.storeId) {
+        return NextResponse.json({ error: 'Store ID mismatch' }, { status: 403 });
+      }
+    }
 
     // Validation
     if (!items || items.length === 0) {
@@ -156,17 +184,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!cashierId) {
-      return NextResponse.json(
-        { error: 'Cashier ID is required. Please login again.' },
-        { status: 400 }
-      );
-    }
-
-    // ✅ Check if KDS is enabled
+    // Check if KDS is enabled
     const kdsCheckStartTime = Date.now();
     let kdsEnabled = false;
-    
+
     try {
       const kdsSetting = await prisma.setting.findUnique({
         where: {
@@ -182,19 +203,16 @@ export async function POST(request: NextRequest) {
       kdsEnabled = false;
     }
 
-    // Verify cashier
+    // Verify cashier (optional since we have session, but good for active check)
     const cashierStartTime = Date.now();
     const cashier = await prisma.user.findFirst({
-      where: { 
+      where: {
         id: cashierId,
         storeId: storeId,
         isActive: true,
       },
       select: {
         id: true,
-        fullName: true,
-        username: true,
-        role: true,
       },
     });
 
@@ -205,12 +223,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-
     // Validate promo code
-    let validatedPromo = null;
+    let validatedPromo: any = null;
     if (promoCode) {
-      const promoStartTime = Date.now();
-      
       validatedPromo = await prisma.promo.findFirst({
         where: {
           code: promoCode.toUpperCase(),
@@ -223,90 +238,123 @@ export async function POST(request: NextRequest) {
 
       if (!validatedPromo) {
         console.warn(`[TRANSACTIONS API] Invalid promo code: ${promoCode}`);
-      } else {
       }
     }
 
-    // Generate invoice number
-    const invoiceStartTime = Date.now();
-    const invoiceNumber = await generateInvoiceNumber(storeId);
+    // --- START ATOMIC TRANSACTION ---
+    const transactionResult = await prisma.$transaction(async (tx) => {
+      // 1. Generate Invoice (Atomic check with tx)
+      const invoiceStartTime = Date.now();
+      const invoiceNumber = await generateInvoiceNumber(storeId, tx);
 
-    // Create transaction
-    const transactionStartTime = Date.now();
-    
-    const transaction = await prisma.transaction.create({
-      data: {
-        invoiceNumber,
-        subtotal: parseFloat(subtotal.toString()),
-        tax: parseFloat(tax?.toString() || '0'),
-        discount: parseFloat(discount?.toString() || '0'),
-        total: parseFloat(total.toString()),
-        paymentMethod,
-        paymentChannel: paymentChannel || null,
-        paymentReference: paymentReference || null,
-        amountPaid: parseFloat(amountPaid.toString()),
-        change: parseFloat(change?.toString() || '0'),
-        customerName: customerName || null,
-        customerPhone: customerPhone || null,
-        notes: notes || null,
-        promoCode: validatedPromo ? validatedPromo.code : null,
-        promoDiscount: validatedPromo && promoDiscount ? parseFloat(promoDiscount.toString()) : 0,
-        cashierId: cashier.id,
-        storeId,
-        
-        // ✅ Kitchen Display System fields - Only set if KDS enabled
-        orderType: kdsEnabled ? orderType : null,
-        tableNumber: kdsEnabled && tableNumber ? tableNumber : null,
-        kitchenStatus: kdsEnabled ? 'pending' : null,
-        sentToKitchenAt: kdsEnabled ? new Date() : null,
-        
-        items: {
-          create: items.map((item: any) => ({
-            productId: item.productId,
-            productName: item.name,
-            quantity: parseInt(item.quantity.toString()),
-            price: parseFloat(item.price.toString()),
-            subtotal: parseFloat(item.subtotal.toString()),
-            discount: parseFloat(item.discount?.toString() || '0'),
-            notes: item.notes || null, // ✅ Item notes from checkout
-            
-            // ✅ Kitchen Display System item fields - Only if KDS enabled
-            kitchenStation: kdsEnabled ? (item.kitchenStation || 'main') : null,
-            kitchenStatus: kdsEnabled ? 'pending' : null,
-            prepTime: kdsEnabled ? (item.prepTime || 5) : null,
-            modifiers: kdsEnabled ? (item.modifiers || []) : [],
-          })),
+      // 2. Create Transaction
+      const transactionStartTime = Date.now();
+      const newTransaction = await tx.transaction.create({
+        data: {
+          invoiceNumber,
+          subtotal: parseFloat(subtotal.toString()),
+          tax: parseFloat(tax?.toString() || '0'),
+          discount: parseFloat(discount?.toString() || '0'),
+          total: parseFloat(total.toString()),
+          paymentMethod,
+          paymentChannel: paymentChannel || null,
+          paymentReference: paymentReference || null,
+          amountPaid: parseFloat(amountPaid.toString()),
+          change: parseFloat(change?.toString() || '0'),
+          customerName: customerName || null,
+          customerPhone: customerPhone || null,
+          notes: notes || null,
+          promoCode: validatedPromo ? validatedPromo.code : null,
+          promoDiscount: validatedPromo && promoDiscount ? parseFloat(promoDiscount.toString()) : 0,
+          cashierId: cashier.id,
+          storeId,
+
+          // KDS fields
+          orderType: kdsEnabled ? orderType : null,
+          tableNumber: kdsEnabled && tableNumber ? tableNumber : null,
+          kitchenStatus: kdsEnabled ? 'pending' : null,
+          sentToKitchenAt: kdsEnabled ? new Date() : null,
+
+          items: {
+            create: items.map((item: any) => ({
+              productId: item.productId,
+              productName: item.name,
+              quantity: parseInt(item.quantity.toString()),
+              price: parseFloat(item.price.toString()),
+              subtotal: parseFloat(item.subtotal.toString()),
+              discount: parseFloat(item.discount?.toString() || '0'),
+              notes: item.notes || null,
+
+              // KDS item fields
+              kitchenStation: kdsEnabled ? (item.kitchenStation || 'main') : null,
+              kitchenStatus: kdsEnabled ? 'pending' : null,
+              prepTime: kdsEnabled ? (item.prepTime || 5) : null,
+              modifiers: kdsEnabled ? (item.modifiers || []) : [],
+            })),
+          },
         },
-      },
-      include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                name: true,
-                kitchenStation: true,
-                prepTime: true,
-              },
+        include: {
+          items: true,
+          cashier: {
+            select: {
+              id: true,
+              fullName: true,
+              username: true,
+              role: true,
             },
           },
         },
-        cashier: {
-          select: {
-            id: true,
-            fullName: true,
-            username: true,
-            role: true,
-          },
-        },
-      },
-    });
-    
+      });
 
-    // ✅ Send to Kitchen Display ONLY if KDS is enabled
+      // 3. Log promo usage
+      if (validatedPromo && promoDiscount > 0) {
+        await tx.promoUsageLog.create({
+          data: {
+            promoId: validatedPromo.id,
+            promoCode: validatedPromo.code,
+            customerPhone: customerPhone || null,
+            transactionId: newTransaction.id,
+            invoiceNumber: newTransaction.invoiceNumber,
+            discountAmount: parseFloat(promoDiscount.toString()),
+            cashierId: cashier.id,
+            storeId,
+          },
+        });
+
+        await tx.promo.update({
+          where: { id: validatedPromo.id },
+          data: { usageCount: { increment: 1 } },
+        });
+      }
+
+      // 4. Update product stock
+      const stockStartTime = Date.now();
+      for (const item of items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: {
+              decrement: parseInt(item.quantity.toString()),
+            },
+          },
+        });
+      }
+
+      return {
+        transaction: newTransaction,
+        timings: {
+          invoice: Date.now() - invoiceStartTime,
+          creation: Date.now() - transactionStartTime,
+          stock: Date.now() - stockStartTime,
+        }
+      };
+    }); // END TRANSACTION
+
+    const { transaction, timings } = transactionResult;
+
+    // Send to Kitchen Display (Outside Transaction)
     if (kdsEnabled) {
       try {
-        const pusherStartTime = Date.now();
-        
         const kitchenOrder = {
           id: transaction.id,
           transactionId: transaction.id,
@@ -317,12 +365,12 @@ export async function POST(request: NextRequest) {
           orderType: transaction.orderType,
           notes: transaction.notes,
           createdAt: transaction.createdAt,
-          items: transaction.items.map((item) => ({
+          items: transaction.items.map((item: any) => ({
             id: item.id,
             productId: item.productId,
             productName: item.productName,
             quantity: item.quantity,
-            notes: item.notes, // ✅ Item notes
+            notes: item.notes,
             station: item.kitchenStation || 'main',
             status: item.kitchenStatus || 'pending',
             prepTime: item.prepTime || 5,
@@ -330,61 +378,11 @@ export async function POST(request: NextRequest) {
           })),
         };
 
-        await triggerKitchenOrder(storeId, kitchenOrder);
+        triggerKitchenOrder(storeId, kitchenOrder).catch(console.error);
       } catch (pusherError) {
-        console.error('[TRANSACTIONS API] ⚠️ Pusher error (non-critical):', pusherError);
-        // Transaction still succeeds even if pusher fails
-      }
-    } else {
-    }
-
-    // Log promo usage
-    if (validatedPromo && promoDiscount > 0) {
-      const promoLogStartTime = Date.now();
-      
-      try {
-        await Promise.all([
-          prisma.promoUsageLog.create({
-            data: {
-              promoId: validatedPromo.id,
-              promoCode: validatedPromo.code,
-              customerPhone: customerPhone || null,
-              transactionId: transaction.id,
-              invoiceNumber: transaction.invoiceNumber,
-              discountAmount: parseFloat(promoDiscount.toString()),
-              cashierId: cashier.id,
-              storeId,
-            },
-          }),
-          
-          prisma.promo.update({
-            where: { id: validatedPromo.id },
-            data: { usageCount: { increment: 1 } },
-          }),
-        ]);
-
-      } catch (promoError) {
-        console.error('[TRANSACTIONS API] Error logging promo (non-critical):', promoError);
+        console.error('[TRANSACTIONS API] Pusher error:', pusherError);
       }
     }
-
-    // Update product stock
-    const stockStartTime = Date.now();
-    
-    const stockUpdates = items.map((item: any) =>
-      prisma.product.update({
-        where: { id: item.productId },
-        data: {
-          stock: {
-            decrement: parseInt(item.quantity.toString()),
-          },
-        },
-      }).catch((error) => {
-        console.error(`[TRANSACTIONS API] Failed to update stock for product ${item.productId}:`, error);
-      })
-    );
-
-    await Promise.all(stockUpdates);
 
     const totalTime = Date.now() - startTime;
 
@@ -395,9 +393,9 @@ export async function POST(request: NextRequest) {
         breakdown: {
           kdsCheck: `${Date.now() - kdsCheckStartTime}ms`,
           cashierVerification: `${Date.now() - cashierStartTime}ms`,
-          invoiceGeneration: `${Date.now() - invoiceStartTime}ms`,
-          transactionCreation: `${Date.now() - transactionStartTime}ms`,
-          stockUpdate: `${Date.now() - stockStartTime}ms`,
+          invoiceGeneration: `${timings.invoice}ms`,
+          transactionCreation: `${timings.creation}ms`,
+          stockUpdate: `${timings.stock}ms`,
         },
         kdsEnabled,
       },
@@ -405,12 +403,12 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     const queryTime = Date.now() - startTime;
-    console.error(`[TRANSACTIONS API] ❌ POST Error after ${queryTime}ms:`, error);
-    
+    console.error(`[TRANSACTIONS API] POST Error after ${queryTime}ms:`, error);
+
     return NextResponse.json(
-      { 
+      {
         error: error.message || 'Failed to create transaction',
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       },
       { status: 500 }
     );

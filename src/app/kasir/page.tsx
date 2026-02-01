@@ -629,57 +629,65 @@ export default function KasirPage() {
         products={products}
         storeId={store?.id || getClientStoreId()}
         onComplete={async (paymentData) => {
-          const transactionData = {
-            items: items.map((item) => {
-              const product = products.find((p) => p.id === item.productId);
-              return {
-                productId: item.productId,
-                name: item.name,
-                quantity: item.quantity,
-                price: item.price,
-                subtotal: item.subtotal,
-                discount: item.discount || 0,
-                // ✅ Include item notes from checkout
-                notes: paymentData.itemNotes?.[item.productId] || undefined,
-              };
-            }),
-            subtotal,
-            tax,
-            discount: paymentData.promoDiscount || 0,
-            total: total - (paymentData.promoDiscount || 0),
-            paymentMethod: paymentData.paymentMethod,
-            paymentChannel: paymentData.paymentChannel,
-            amountPaid: paymentData.amountPaid,
-            change: paymentData.change,
-            customerName: paymentData.customerName,
-            customerPhone: paymentData.customerPhone,
-            notes: paymentData.notes,
-            promoCode: paymentData.promoCode,
-            promoDiscount: paymentData.promoDiscount || 0,
-            storeId: store?.id || getClientStoreId(),
-            cashierId: currentCashier.id,
+          try {
+            const transactionData = {
+              items: items.map((item) => {
+                const product = products.find((p) => p.id === item.productId);
+                return {
+                  productId: item.productId,
+                  name: item.name,
+                  quantity: item.quantity,
+                  price: item.price,
+                  subtotal: item.subtotal,
+                  discount: item.discount || 0,
+                  // ✅ Include item notes from checkout
+                  notes: paymentData.itemNotes?.[item.productId] || undefined,
+                };
+              }),
+              subtotal,
+              tax,
+              discount: paymentData.promoDiscount || 0,
+              total: total - (paymentData.promoDiscount || 0),
+              paymentMethod: paymentData.paymentMethod,
+              paymentChannel: paymentData.paymentChannel,
+              amountPaid: paymentData.amountPaid,
+              change: paymentData.change,
+              customerName: paymentData.customerName,
+              customerPhone: paymentData.customerPhone,
+              notes: paymentData.notes,
+              promoCode: paymentData.promoCode,
+              promoDiscount: paymentData.promoDiscount || 0,
+              storeId: store?.id || getClientStoreId(),
+              cashierId: currentCashier.id,
 
-            // Kitchen Display System fields
-            orderType: paymentData.orderType,
-            tableNumber: paymentData.tableNumber,
-          };
+              // Kitchen Display System fields
+              orderType: paymentData.orderType,
+              tableNumber: paymentData.tableNumber,
+            };
 
-          const res = await fetch("/api/transactions", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(transactionData),
-          });
+            const res = await fetch("/api/transactions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(transactionData),
+            });
 
-          if (!res.ok) throw new Error("Failed to create transaction");
+            if (!res.ok) {
+              const errorData = await res.json().catch(() => ({}));
+              throw new Error(errorData.error || "Gagal membuat transaksi");
+            }
 
-          const transaction = await res.json();
-          toast.success("Transaksi berhasil!");
+            const transaction = await res.json();
+            toast.success("Transaksi berhasil!");
 
-          setCompletedTransaction(transaction);
-          setShowCheckout(false);
-          setShowReceipt(true);
-          clearCart();
-          loadProducts();
+            setCompletedTransaction(transaction);
+            setShowCheckout(false);
+            setShowReceipt(true);
+            clearCart();
+            loadProducts();
+          } catch (error: any) {
+            console.error("Transaction Error:", error);
+            toast.error(error.message || "Terjadi kesalahan saat memproses transaksi");
+          }
         }}
       />
 

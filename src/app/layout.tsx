@@ -17,6 +17,18 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata = {
   title: 'Modern POS System',
   description: 'Sistem Point of Sale Modern',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Modern POS',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+export const viewport = {
+  themeColor: '#3B82F6',
 };
 
 
